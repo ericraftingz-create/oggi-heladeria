@@ -11,6 +11,10 @@ from db import get_db, init_db, migrate_db
 app = Flask(__name__)
 app.secret_key = 'oggi_officina_gelato_2024_secret'
 
+# Inicializar DB y migraciones al arrancar (funciona tanto en WSGI como local)
+init_db()
+migrate_db()
+
 # ─────────────────────────────────────────────
 # AUTH DECORATORS
 # ─────────────────────────────────────────────
