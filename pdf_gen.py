@@ -122,7 +122,7 @@ def pdf_pedido(pedido, items):
     p.ln()
     p.cell(0, 7, f'Estado: {pedido["estado"].upper()}')
     p.ln()
-    if pedido.get('responsable'):
+    if pedido['responsable']:
         p.cell(0, 7, f'Solicitado por: {pedido["responsable"]}')
         p.ln()
     p.cell(0, 7, f'Fecha: {str(pedido["created_at"])[:10]}')
