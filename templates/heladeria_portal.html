@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ heladeria.nombre }} — OGGI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brown: #7B3A10; --dark: #2D1000; --beige: #F5E6CC; --light: #F9F0E1; }
+    body { background: var(--light); }
+    .topbar {
+      background: var(--dark); color: #fff; padding: .8rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .brand { font-family: 'Dancing Script', cursive; font-size: 1.5rem; color: var(--beige); }
+    .topbar .shop-name { font-size: .85rem; color: rgba(245,230,204,.65); }
+    .container-main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .sabor-card {
+      background: #fff; border-radius: 10px; padding: 1rem 1.25rem;
+      box-shadow: 0 1px 4px rgba(45,16,0,.08); margin-bottom: .6rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .sabor-nombre { font-weight: 600; color: var(--dark); }
+    .badge-disponible  { background: #198754 !important; }
+    .badge-bajo_pedido { background: #fd7e14 !important; }
+    .btn-pedir { background: var(--brown); border: none; color: #fff; border-radius: 8px;
+                 font-weight: 600; }
+    .btn-pedir:hover { background: var(--dark); color: #fff; }
+    .flash-container { position:fixed; top:1rem; right:1rem; z-index:9999; min-width:280px; }
+    footer { text-align:center; font-size:.7rem; color:#b08060; font-style:italic; padding:2rem 0 1rem; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <div class="brand">oggi</div>
+    <div class="shop-name">{{ heladeria.nombre }}</div>
+    <small style="color:rgba(245,230,204,.65)">Hola, {{ cu.nombre or cu.username }}</small>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{{ url_for('heladeria_pedido', hid=heladeria.id) }}" class="btn btn-pedir btn-sm">
+      <i class="bi bi-cart-plus me-1"></i>Hacer pedido
+    </a>
+    <form method="post" action="{{ url_for('logout') }}" class="mb-0">
+      <button class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i></button>
+    </form>
+  </div>
+</div>
+
+<div class="flash-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'warning' }} alert-dismissible fade show shadow-sm">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div class="container-main">
+  <h5 class="mb-3" style="color:var(--dark); font-weight:700">Sabores disponibles</h5>
+
+  {% if sabores %}
+  {% for s in sabores %}
+  <div class="sabor-card">
+    <div>
+      <div class="sabor-nombre">{{ s.nombre }}</div>
+      {% if s.notas %}
+      <small class="text-muted">{{ s.notas }}</small>
+      {% endif %}
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      {% if s.stock_reservas > 0 %}
+      <span class="text-success small fw-semibold">
+        <i class="bi bi-boxes me-1"></i>{{ s.stock_reservas }} en stock
+      </span>
+      {% endif %}
+      <span class="badge badge-{{ s.disponibilidad }}">
+        {% if s.disponibilidad == 'disponible' %}✅ Disponible{% else %}🟠 Bajo pedido{% endif %}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="alert alert-info">No hay sabores disponibles en este momento.</div>
+  {% endif %}
+
+  {% if mis_pedidos %}
+  <h5 class="mt-4 mb-3" style="color:var(--dark); font-weight:700">Mis pedidos recientes</h5>
+  {% for p in mis_pedidos %}
+  <div class="sabor-card">
+    <div>
+      <div class="sabor-nombre">Pedido #{{ p.id }}</div>
+      <small class="text-muted">{{ p.resumen or '—' }}</small>
+    </div>
+    <div class="text-end">
+      <span class="badge bg-{% if p.estado == 'pendiente' %}warning text-dark{% elif p.estado == 'en_produccion' %}primary{% else %}success{% endif %}">
+        {{ p.estado|replace('_',' ') }}
+      </span>
+      <br><small class="text-muted">{{ p.created_at[:10] }}</small>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<footer>Desarrollado por Erick Espina · Sr. Finley &nbsp;·&nbsp; OGGI officina gelato gusto italiano</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

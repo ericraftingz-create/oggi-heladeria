@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Proceso – {{ sabor.nombre }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center gap-3">
+  <a href="{{ url_for('sabores') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <div>
+    <h1 class="mb-0">Proceso: {{ sabor.nombre }}</h1>
+    <small class="text-muted">Pasos de elaboración</small>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <a href="{{ url_for('receta', id=sabor.id) }}" class="btn btn-outline-success"><i class="bi bi-list me-1"></i>Receta</a>
+    <a href="{{ url_for('cocina', id=sabor.id) }}" class="btn btn-outline-primary"><i class="bi bi-display me-1"></i>Modo cocina</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Pasos existentes -->
+  <div class="col-md-8">
+    {% if pasos %}
+    {% for paso in pasos %}
+    <div class="card mb-3">
+      <div class="card-header d-flex align-items-center">
+        <span class="badge bg-primary me-2">{{ paso.orden }}</span>
+        <strong>{{ paso.descripcion }}</strong>
+        <div class="ms-auto d-flex gap-1">
+          {% if paso.tiempo_minutos %}
+          <span class="badge bg-secondary"><i class="bi bi-clock me-1"></i>{{ paso.tiempo_minutos }} min</span>
+          {% endif %}
+          {% if paso.temperatura_c %}
+          <span class="badge bg-warning text-dark"><i class="bi bi-thermometer me-1"></i>{{ paso.temperatura_c }}°C</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if paso.notas %}
+      <div class="card-body py-2">
+        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>{{ paso.notas }}</small>
+      </div>
+      {% endif %}
+      <div class="card-footer bg-transparent py-2 d-flex gap-2 align-items-center">
+        <!-- Edit inline -->
+        <button class="btn btn-xs btn-outline-secondary" type="button"
+                data-bs-toggle="collapse" data-bs-target="#edit{{ paso.id }}">
+          <i class="bi bi-pencil"></i> Editar
+        </button>
+        <form method="post" class="d-inline"
+              onsubmit="return confirm('¿Eliminar este paso?')">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="paso_id" value="{{ paso.id }}">
+          <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+        </form>
+      </div>
+
+      <!-- Edit form (collapsed) -->
+      <div class="collapse" id="edit{{ paso.id }}">
+        <div class="card-body border-top">
+          <form method="post">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="paso_id" value="{{ paso.id }}">
+            <div class="mb-2">
+              <textarea name="descripcion" class="form-control form-control-sm" rows="2" required>{{ paso.descripcion }}</textarea>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col">
+                <input type="number" name="tiempo_minutos" class="form-control form-control-sm"
+                       placeholder="Tiempo (min)" value="{{ paso.tiempo_minutos or '' }}">
+              </div>
+              <div class="col">
+                <input type="number" name="temperatura_c" class="form-control form-control-sm"
+                       step="0.1" placeholder="Temp (°C)" value="{{ paso.temperatura_c or '' }}">
+              </div>
+            </div>
+            <div class="mb-2">
+              <input type="text" name="notas" class="form-control form-control-sm"
+                     placeholder="Notas opcionales" value="{{ paso.notas or '' }}">
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">Guardar cambios</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="alert alert-info">Sin pasos. Agregá el primero.</div>
+    {% endif %}
+  </div>
+
+  <!-- Agregar paso -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">Agregar paso</div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="action" value="add">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Descripción *</label>
+            <textarea name="descripcion" class="form-control form-control-sm" rows="2" required
+                      placeholder="Ej: Mezclar leche y azúcar a fuego medio"></textarea>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col">
+              <label class="form-label small">Tiempo (min)</label>
+              <input type="number" name="tiempo_minutos" class="form-control form-control-sm" min="0" placeholder="—">
+            </div>
+            <div class="col">
+              <label class="form-label small">Temp (°C)</label>
+              <input type="number" name="temperatura_c" class="form-control form-control-sm" step="0.1" placeholder="—">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Notas opcionales</label>
+            <input type="text" name="notas" class="form-control form-control-sm" placeholder="Ej: Remover constantemente">
+          </div>
+          <button type="submit" class="btn btn-success btn-sm w-100">
+            <i class="bi bi-plus-lg me-1"></i>Agregar paso
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,147 @@
+import sqlite3
+import os
+from werkzeug.security import generate_password_hash
+
+# Local: carpeta del proyecto. Nube (Railway): poner DATABASE_PATH=/data/heladeria.db
+_default = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'heladeria.db')
+DB_PATH = os.environ.get('DATABASE_PATH', _default)
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+get_conn = get_db
+
+def init_db():
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS insumos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            unidad TEXT NOT NULL DEFAULT 'kg',
+            proveedor TEXT DEFAULT '',
+            precio_unitario REAL DEFAULT 0,
+            stock_actual REAL DEFAULT 0,
+            stock_seguridad REAL DEFAULT 2
+        );
+        CREATE TABLE IF NOT EXISTS sabores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            disponibilidad TEXT DEFAULT 'bajo_pedido',
+            disponibilidad_manual INTEGER DEFAULT 0,
+            notas TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS receta_insumos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sabor_id INTEGER NOT NULL,
+            insumo_id INTEGER NOT NULL,
+            cantidad REAL NOT NULL DEFAULT 0,
+            no_escalar INTEGER DEFAULT 0,
+            FOREIGN KEY (sabor_id) REFERENCES sabores(id) ON DELETE CASCADE,
+            FOREIGN KEY (insumo_id) REFERENCES insumos(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS proceso_pasos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sabor_id INTEGER NOT NULL,
+            orden INTEGER NOT NULL DEFAULT 1,
+            descripcion TEXT NOT NULL DEFAULT '',
+            tiempo_minutos INTEGER,
+            temperatura_c REAL,
+            notas TEXT DEFAULT '',
+            FOREIGN KEY (sabor_id) REFERENCES sabores(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS inventario_reservas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sabor_id INTEGER NOT NULL UNIQUE,
+            cantidad INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (sabor_id) REFERENCES sabores(id)
+        );
+        CREATE TABLE IF NOT EXISTS produccion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha DATE NOT NULL,
+            sabor_id INTEGER NOT NULL,
+            cantidad INTEGER NOT NULL,
+            notas TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sabor_id) REFERENCES sabores(id)
+        );
+        CREATE TABLE IF NOT EXISTS heladerias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE,
+            activo INTEGER DEFAULT 1
+        );
+        CREATE TABLE IF NOT EXISTS pedidos_internos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            heladeria_id INTEGER NOT NULL,
+            estado TEXT DEFAULT 'pendiente',
+            notas TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (heladeria_id) REFERENCES heladerias(id)
+        );
+        CREATE TABLE IF NOT EXISTS pedido_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pedido_id INTEGER NOT NULL,
+            sabor_id INTEGER NOT NULL,
+            cantidad INTEGER NOT NULL,
+            tipo_entrega TEXT DEFAULT 'stock',
+            FOREIGN KEY (pedido_id) REFERENCES pedidos_internos(id) ON DELETE CASCADE,
+            FOREIGN KEY (sabor_id) REFERENCES sabores(id)
+        );
+        CREATE TABLE IF NOT EXISTS pedidos_insumos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mes INTEGER NOT NULL,
+            anio INTEGER NOT NULL,
+            estado TEXT DEFAULT 'borrador',
+            costo_total REAL DEFAULT 0,
+            notas TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS pedido_insumos_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pedido_insumos_id INTEGER NOT NULL,
+            insumo_id INTEGER NOT NULL,
+            cantidad_necesaria REAL DEFAULT 0,
+            stock_actual REAL DEFAULT 0,
+            stock_seguridad REAL DEFAULT 0,
+            cantidad_pedir REAL DEFAULT 0,
+            precio_unitario REAL DEFAULT 0,
+            subtotal REAL DEFAULT 0,
+            FOREIGN KEY (pedido_insumos_id) REFERENCES pedidos_insumos(id) ON DELETE CASCADE,
+            FOREIGN KEY (insumo_id) REFERENCES insumos(id)
+        );
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            nombre TEXT DEFAULT '',
+            rol TEXT NOT NULL DEFAULT 'admin' CHECK(rol IN ('superadmin','admin','cliente')),
+            heladeria_id INTEGER REFERENCES heladerias(id),
+            activo INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    cur = conn.execute("SELECT COUNT(*) FROM heladerias")
+    if cur.fetchone()[0] == 0:
+        conn.execute("INSERT INTO heladerias (nombre) VALUES ('Heladeria Principal')")
+    cur = conn.execute("SELECT COUNT(*) FROM usuarios")
+    if cur.fetchone()[0] == 0:
+        conn.execute(
+            "INSERT INTO usuarios (username, password_hash, nombre, rol) VALUES ('admin', ?, 'Administrador General', 'superadmin')",
+            (generate_password_hash('oggi2024'),)
+        )
+    conn.commit()
+    conn.close()
+
+def migrate_db():
+    """Run incremental migrations for columns added after initial schema."""
+    conn = get_db()
+    # Add responsable column to pedidos_internos if missing
+    try:
+        conn.execute("ALTER TABLE pedidos_internos ADD COLUMN responsable TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass  # Column already exists
+    conn.close()

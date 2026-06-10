@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Pedidos internos{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <h1><i class="bi bi-cart3 me-2"></i>Pedidos internos</h1>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if pedidos %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Heladería</th>
+          <th>Responsable</th>
+          <th>Detalle</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th class="text-center">Cambiar estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in pedidos %}
+      <tr class="{% if p.estado == 'pendiente' %}table-warning{% elif p.estado == 'en_produccion' %}table-primary{% endif %}">
+        <td class="fw-bold">{{ p.id }}</td>
+        <td>{{ p.heladeria_nombre }}</td>
+        <td class="small">
+          {% if p.responsable %}<span class="fw-semibold">{{ p.responsable }}</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="small text-muted">{{ p.resumen or '—' }}</td>
+        <td>
+          <span class="badge bg-{% if p.estado == 'pendiente' %}warning text-dark{% elif p.estado == 'en_produccion' %}primary{% else %}success{% endif %}">
+            {{ p.estado|replace('_',' ') }}
+          </span>
+        </td>
+        <td class="text-muted small">{{ p.created_at[:10] }}</td>
+        <td class="text-center">
+          {% if p.estado == 'pendiente' %}
+          <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline">
+            <input type="hidden" name="estado" value="en_produccion">
+            <button class="btn btn-xs btn-outline-primary">→ En producción</button>
+          </form>
+          <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline ms-1"
+                onsubmit="return confirm('¿Marcar como entregado? Se descontará del inventario.')">
+            <input type="hidden" name="estado" value="entregado">
+            <button class="btn btn-xs btn-success">✓ Entregar</button>
+          </form>
+          {% elif p.estado == 'en_produccion' %}
+          <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Marcar como entregado? Se descontará del inventario.')">
+            <input type="hidden" name="estado" value="entregado">
+            <button class="btn btn-xs btn-success">✓ Entregar</button>
+          </form>
+          {% else %}
+          <span class="text-muted small">Completado</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('pedido_detalle', id=p.id) }}" class="btn btn-xs btn-outline-secondary">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted p-4 mb-0 text-center">Sin pedidos registrados.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

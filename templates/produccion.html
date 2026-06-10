@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Producción{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-cup-hot me-2"></i>Registro de Producción</h1>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Formulario de registro -->
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header">Registrar producción</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Sabor</label>
+            <select name="sabor_id" class="form-select" required id="saborSel">
+              <option value="">Seleccionar sabor…</option>
+              {% for s in sabores %}
+              <option value="{{ s.id }}">{{ s.nombre }}</option>
+              {% endfor %}
+            </select>
+            <div class="mt-1">
+              <a id="linkCocina" href="#" class="small text-info d-none">
+                <i class="bi bi-display me-1"></i>Abrir modo cocina para este sabor
+              </a>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Reservas</label>
+              <input type="number" name="cantidad" class="form-control" min="1" value="1" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Fecha</label>
+              <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notas</label>
+            <input type="text" name="notas" class="form-control" placeholder="Opcional">
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-check-circle me-1"></i>Registrar producción
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registros de hoy -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">Producción de hoy</div>
+      <div class="card-body p-0">
+        {% if registros_hoy %}
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr><th>Sabor</th><th class="text-center">Reservas</th><th class="text-center">Litros</th><th>Notas</th><th></th></tr>
+          </thead>
+          <tbody>
+          {% for r in registros_hoy %}
+          <tr>
+            <td>{{ r.sabor_nombre }}</td>
+            <td class="text-center fw-bold">{{ r.cantidad }}</td>
+            <td class="text-center text-muted">{{ r.cantidad * 4 }} L</td>
+            <td class="text-muted small">{{ r.notas or '—' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('produccion_eliminar', id=r.id) }}"
+                    onsubmit="return confirm('¿Eliminar este registro? El stock se revertirá.')">
+                <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted p-3 mb-0">Sin producción registrada hoy.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Resumen mensual -->
+{% if resumen_mes %}
+<div class="card">
+  <div class="card-header">Resumen mes actual ({{ mes_actual }})</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>Sabor</th><th class="text-center">Reservas</th><th class="text-center">Litros</th></tr>
+      </thead>
+      <tbody>
+      {% set total_r = namespace(v=0) %}
+      {% for r in resumen_mes %}
+      <tr>
+        <td>{{ r.nombre }}</td>
+        <td class="text-center">{{ r.reservas }}</td>
+        <td class="text-center text-muted">{{ r.litros }} L</td>
+      </tr>
+      {% set total_r.v = total_r.v + r.reservas %}
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light fw-bold">
+          <td>TOTAL</td>
+          <td class="text-center">{{ total_r.v }}</td>
+          <td class="text-center">{{ total_r.v * 4 }} L</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+const urls = {
+  {% for s in sabores %}
+  {{ s.id }}: '{{ url_for("cocina", id=s.id) }}',
+  {% endfor %}
+};
+document.getElementById('saborSel').addEventListener('change', function() {
+  const link = document.getElementById('linkCocina');
+  if (this.value && urls[this.value]) {
+    link.href = urls[this.value];
+    link.classList.remove('d-none');
+  } else {
+    link.classList.add('d-none');
+  }
+});
+</script>
+{% endblock %}

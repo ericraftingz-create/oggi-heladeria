@@ -1,0 +1,4 @@
+flask>=3.0
+fpdf2>=2.7
+gunicorn>=21.0
+werkzeug>=3.0

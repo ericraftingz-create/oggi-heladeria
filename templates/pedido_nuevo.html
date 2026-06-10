@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nuevo Pedido — {{ heladeria.nombre }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brown: #7B3A10; --dark: #2D1000; --beige: #F5E6CC; --light: #F9F0E1; }
+    body { background: var(--light); }
+    .topbar { background: var(--dark); color:#fff; padding:.8rem 1.5rem;
+              display:flex; align-items:center; justify-content:space-between; }
+    .topbar .brand { font-family:'Dancing Script',cursive; font-size:1.5rem; color:var(--beige); }
+    .container-main { max-width:680px; margin:0 auto; padding:1.5rem 1rem; }
+    .sabor-row { background:#fff; border-radius:10px; padding:.85rem 1rem; margin-bottom:.5rem;
+                 display:flex; align-items:center; justify-content:space-between; gap:1rem;
+                 box-shadow:0 1px 3px rgba(45,16,0,.07); }
+    .sabor-nombre { font-weight:600; color:var(--dark); }
+    .qty-input { width:80px; text-align:center; border:1px solid #e0ccb8; background:var(--light); color:var(--dark); }
+    .badge-disponible  { background:#198754 !important; }
+    .badge-bajo_pedido { background:#fd7e14 !important; }
+    .btn-send { background:var(--brown); border:none; color:#fff; font-weight:600; font-size:1rem; padding:.65rem; border-radius:8px; }
+    .btn-send:hover { background:var(--dark); color:#fff; }
+    .flash-container { position:fixed; top:1rem; right:1rem; z-index:9999; min-width:280px; }
+    footer { text-align:center; font-size:.7rem; color:#b08060; font-style:italic; padding:2rem 0 1rem; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <div class="brand">oggi</div>
+    <small style="color:rgba(245,230,204,.65)">{{ heladeria.nombre }}</small>
+  </div>
+  <a href="{{ url_for('heladeria_portal', hid=heladeria.id) }}" class="btn btn-outline-light btn-sm">
+    ← Volver
+  </a>
+</div>
+
+<div class="flash-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'warning' }} alert-dismissible fade show shadow-sm">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div class="container-main">
+  <h4 class="mb-1" style="color:var(--dark); font-weight:700">Nuevo Pedido</h4>
+  <p class="text-muted mb-4">Ingresá la cantidad de tarros (reservas de 4L) por sabor.</p>
+
+  <form method="post">
+    {% if sabores %}
+    {% for s in sabores %}
+    <div class="sabor-row">
+      <div class="flex-grow-1">
+        <div class="sabor-nombre">{{ s.nombre }}</div>
+        <small class="text-muted">
+          {% if s.stock_reservas > 0 %}
+          <span class="text-success"><i class="bi bi-boxes me-1"></i>{{ s.stock_reservas }} en stock</span>
+          {% else %}<span class="text-warning"><i class="bi bi-clock me-1"></i>A producir</span>{% endif %}
+        </small>
+      </div>
+      <span class="badge badge-{{ s.disponibilidad }}">
+        {% if s.disponibilidad == 'disponible' %}✅{% else %}🟠{% endif %}
+      </span>
+      <div class="d-flex align-items-center gap-2">
+        <input type="hidden" name="sabor_id[]" value="{{ s.id }}">
+        <input type="number" name="cantidad[]" class="form-control qty-input" min="0" value="0">
+        <span class="text-muted small">tarros</span>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold" style="color:var(--dark)">Notas</label>
+      <textarea name="notas" class="form-control" rows="2" style="border-color:#e0ccb8; background:var(--light)"
+                placeholder="Instrucciones especiales, urgencia, etc."></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-send w-100">
+      <i class="bi bi-send me-2"></i>Enviar pedido
+    </button>
+    {% else %}
+    <div class="alert alert-info">No hay sabores disponibles para pedir.</div>
+    {% endif %}
+  </form>
+</div>
+
+<footer>Desarrollado por Erick Espina · Sr. Finley · OGGI</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

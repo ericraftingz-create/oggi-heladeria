@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OGGI — Ingresar</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brown: #7B3A10; --dark: #2D1000; --beige: #F5E6CC; --light: #F9F0E1; }
+    body { background: var(--light); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .logo-text { font-family: 'Dancing Script', cursive; font-size: 3.2rem; font-weight: 700; color: var(--brown); line-height: 1; }
+    .logo-sub  { font-size: .68rem; color: var(--brown); letter-spacing: .18em; font-style: italic; opacity: .7; }
+    .card-box { border: none; border-radius: 14px; box-shadow: 0 8px 32px rgba(45,16,0,.13); background: #fff; }
+    .tab-btn { border: none; background: none; padding: .5rem 1.2rem; border-radius: 8px;
+               font-weight: 600; color: var(--brown); opacity: .5; cursor: pointer; }
+    .tab-btn.active { background: var(--brown); color: #fff; opacity: 1; }
+
+    /* Radio-as-card */
+    .hel-radio { display: none; }
+    .hel-label {
+      display: flex; align-items: center; gap: .6rem;
+      background: #fff; border: 2px solid #e0ccb8; border-radius: 10px;
+      padding: .7rem 1rem; cursor: pointer; font-weight: 600; color: var(--dark);
+      transition: all .15s; margin-bottom: .5rem;
+    }
+    .hel-label:hover { border-color: var(--brown); background: var(--beige); }
+    .hel-radio:checked + .hel-label {
+      border-color: var(--brown); background: var(--beige);
+      box-shadow: 0 0 0 3px rgba(123,58,16,.15);
+    }
+
+    .form-control { border-color: #e0ccb8; background: var(--light); }
+    .form-control:focus { border-color: var(--brown); box-shadow: 0 0 0 .2rem rgba(123,58,16,.15); background: #fff; }
+    .form-label { color: var(--dark); font-weight: 600; font-size: .88rem; }
+    .btn-login { background: var(--brown); border: none; color: #fff; font-weight: 600;
+                 font-size: 1rem; padding: .7rem; border-radius: 8px; width: 100%; }
+    .btn-login:hover { background: var(--dark); color: #fff; }
+    .flash-area { position: fixed; top: 1rem; right: 1rem; z-index: 999; min-width: 280px; }
+    footer { position: fixed; bottom: .75rem; left: 0; right: 0; text-align: center;
+             font-size: .68rem; color: #b08060; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<div class="flash-area">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'danger' if cat == 'danger' else 'warning' }} alert-dismissible fade show shadow-sm">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div style="max-width: 420px; width: 100%; padding: 1rem;">
+  <div class="text-center mb-4">
+    <div class="logo-text">oggi</div>
+    <hr style="border-color: var(--brown); opacity: .2; width: 50px; margin: .4rem auto;">
+    <div class="logo-sub">officina gelato gusto italiano</div>
+  </div>
+
+  <div class="card-box p-4">
+
+    <!-- TABS -->
+    <div class="d-flex justify-content-center gap-2 mb-4">
+      {% if heladerias %}
+      <button type="button" class="tab-btn active" id="tabHel" onclick="switchTab('hel')">
+        <i class="bi bi-shop me-1"></i>Heladería
+      </button>
+      {% endif %}
+      <button type="button" class="tab-btn {% if not heladerias %}active{% endif %}" id="tabAdmin" onclick="switchTab('admin')">
+        <i class="bi bi-shield-lock me-1"></i>Admin
+      </button>
+    </div>
+
+    <!-- PANEL HELADERÍA -->
+    {% if heladerias %}
+    <div id="panelHel">
+      <form method="post">
+        <p class="text-muted small mb-2">Elegí tu heladería</p>
+
+        {% for h in heladerias %}
+        <input type="radio" name="heladeria_id" id="hel{{ h.id }}" value="{{ h.id }}" class="hel-radio"
+               {% if loop.first %}{% endif %}>
+        <label for="hel{{ h.id }}" class="hel-label">
+          <i class="bi bi-geo-alt" style="color:var(--brown)"></i>
+          {{ h.nombre }}
+        </label>
+        {% endfor %}
+
+        <hr style="border-color:#e0ccb8; margin: 1rem 0">
+
+        <div class="mb-2">
+          <label class="form-label">Usuario</label>
+          <input type="text" name="username" class="form-control" autocomplete="username"
+                 value="{{ request.form.get('username', '') }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Contraseña</label>
+          <input type="password" name="password" class="form-control" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login btn">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- PANEL ADMIN -->
+    <div id="panelAdmin" {% if heladerias %}style="display:none"{% endif %}>
+      <form method="post">
+        <div class="mb-2">
+          <label class="form-label">Usuario</label>
+          <input type="text" name="username" class="form-control" autocomplete="username"
+                 value="{{ request.form.get('username', '') }}" autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Contraseña</label>
+          <input type="password" name="password" class="form-control" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login btn">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<footer>Desarrollado por Erick Espina · Sr. Finley</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function switchTab(tab) {
+  var panelHel   = document.getElementById('panelHel');
+  var panelAdmin = document.getElementById('panelAdmin');
+  if (panelHel)   panelHel.style.display   = (tab === 'hel')   ? 'block' : 'none';
+  if (panelAdmin) panelAdmin.style.display = (tab === 'admin') ? 'block' : 'none';
+  var tHel   = document.getElementById('tabHel');
+  var tAdmin = document.getElementById('tabAdmin');
+  if (tHel)   tHel.classList.toggle('active',   tab === 'hel');
+  if (tAdmin) tAdmin.classList.toggle('active', tab === 'admin');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Historial{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-clock-history me-2"></i>Historial</h1>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'produccion' %}active{% endif %}"
+       href="{{ url_for('historial', tab='produccion') }}">Producción</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'pedidos' %}active{% endif %}"
+       href="{{ url_for('historial', tab='pedidos') }}">Pedidos internos</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'insumos' %}active{% endif %}"
+       href="{{ url_for('historial', tab='insumos') }}">Pedidos a proveedores</a>
+  </li>
+</ul>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if tab == 'produccion' %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Fecha</th><th>Sabor</th><th class="text-center">Reservas</th><th class="text-center">Litros</th><th>Notas</th></tr>
+      </thead>
+      <tbody>
+      {% for r in data %}
+      <tr>
+        <td>{{ r.fecha }}</td>
+        <td>{{ r.sabor_nombre }}</td>
+        <td class="text-center fw-bold">{{ r.cantidad }}</td>
+        <td class="text-center text-muted">{{ r.cantidad * 4 }} L</td>
+        <td class="text-muted small">{{ r.notas or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-muted py-4">Sin registros.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    {% elif tab == 'pedidos' %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>#</th><th>Heladería</th><th>Detalle</th><th>Estado</th><th>Fecha</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for p in data %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.heladeria_nombre }}</td>
+        <td class="small text-muted">{{ p.resumen or '—' }}</td>
+        <td>
+          <span class="badge bg-{% if p.estado == 'pendiente' %}warning text-dark{% elif p.estado == 'en_produccion' %}primary{% else %}success{% endif %}">
+            {{ p.estado|replace('_',' ') }}
+          </span>
+        </td>
+        <td class="text-muted small">{{ p.created_at[:10] }}</td>
+        <td>
+          <a href="{{ url_for('pedido_detalle', id=p.id) }}" class="btn btn-xs btn-outline-secondary">Ver</a>
+          <a href="{{ url_for('pdf_pedido', id=p.id) }}" class="btn btn-xs btn-outline-secondary ms-1">PDF</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted py-4">Sin pedidos.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    {% elif tab == 'insumos' %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>#</th><th>Mes / Año</th><th>Estado</th><th class="text-end">Costo total</th><th>Fecha</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for p in data %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.mes }}/{{ p.anio }}</td>
+        <td><span class="badge bg-success">{{ p.estado }}</span></td>
+        <td class="text-end">${{ '%.2f'|format(p.costo_total) }}</td>
+        <td class="text-muted small">{{ p.created_at[:10] }}</td>
+        <td>
+          <a href="{{ url_for('pdf_pedido_insumos', id=p.id) }}" class="btn btn-xs btn-outline-secondary">
+            <i class="bi bi-file-pdf"></i> PDF
+          </a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted py-4">Sin pedidos de insumos.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

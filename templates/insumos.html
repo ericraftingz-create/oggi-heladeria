@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Insumos{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <h1><i class="bi bi-bag me-2"></i>Insumos</h1>
+  <a href="{{ url_for('insumo_nuevo') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo insumo</a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Unidad</th>
+          <th>Proveedor</th>
+          <th class="text-end">Precio unit.</th>
+          <th class="text-center">Stock actual</th>
+          <th class="text-center">Stock mínimo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for ins in insumos %}
+      <tr class="{% if ins.stock_actual <= ins.stock_seguridad %}table-warning{% endif %}">
+        <td class="fw-semibold">{{ ins.nombre }}</td>
+        <td>{{ ins.unidad }}</td>
+        <td class="text-muted">{{ ins.proveedor or '—' }}</td>
+        <td class="text-end">${{ '%.2f'|format(ins.precio_unitario) }}</td>
+        <td class="text-center">
+          <span class="{% if ins.stock_actual <= ins.stock_seguridad %}text-danger fw-bold{% endif %}">
+            {{ ins.stock_actual }} {{ ins.unidad }}
+          </span>
+          {% if ins.stock_actual <= ins.stock_seguridad %}
+          <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Bajo stock mínimo"></i>
+          {% endif %}
+        </td>
+        <td class="text-center text-muted">{{ ins.stock_seguridad }} {{ ins.unidad }}</td>
+        <td class="text-end">
+          <a href="{{ url_for('insumo_editar', id=ins.id) }}" class="btn btn-xs btn-outline-primary me-1">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form method="post" action="{{ url_for('insumo_eliminar', id=ins.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Eliminar {{ ins.nombre }}?')">
+            <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted py-4">Sin insumos registrados. <a href="{{ url_for('insumo_nuevo') }}">Agregar el primero</a>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

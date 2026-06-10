@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Inventario{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-boxes me-2"></i>Inventario</h1>
+</div>
+
+<div class="row g-3">
+  <!-- Reservas terminadas -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Reservas terminadas (por sabor)</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Sabor</th>
+              <th class="text-center">Reservas</th>
+              <th class="text-center">Litros</th>
+              <th class="text-center">Estado</th>
+              <th>Ajustar</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in reservas %}
+          <tr>
+            <td>{{ r.nombre }}</td>
+            <td class="text-center fw-bold {% if r.cantidad > 0 %}text-success{% else %}text-muted{% endif %}">
+              {{ r.cantidad }}
+            </td>
+            <td class="text-center text-muted">{{ r.cantidad * 4 }} L</td>
+            <td class="text-center">
+              <span class="badge badge-{{ r.disponibilidad }}">
+                {% if r.disponibilidad == 'disponible' %}✅{% elif r.disponibilidad == 'bajo_pedido' %}🟠{% else %}❌{% endif %}
+                {{ r.disponibilidad|replace('_',' ') }}
+              </span>
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('inventario_ajustar') }}" class="d-flex gap-1">
+                <input type="hidden" name="sabor_id" value="{{ r.sabor_id }}">
+                <input type="number" name="cantidad" value="{{ r.cantidad }}" min="0"
+                       class="form-control form-control-sm" style="width:70px">
+                <button class="btn btn-xs btn-outline-primary" title="Guardar">
+                  <i class="bi bi-check"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock de insumos -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Stock de insumos</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Insumo</th>
+              <th class="text-center">Stock</th>
+              <th class="text-center">Mínimo</th>
+              <th>Ajustar</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for ins in insumos %}
+          <tr class="{% if ins.alerta %}table-warning{% endif %}">
+            <td>
+              {{ ins.nombre }}
+              {% if ins.alerta %}
+              <i class="bi bi-exclamation-triangle-fill text-danger ms-1"></i>
+              {% endif %}
+            </td>
+            <td class="text-center {% if ins.alerta %}text-danger fw-bold{% endif %}">
+              {{ ins.stock_actual }} {{ ins.unidad }}
+            </td>
+            <td class="text-center text-muted">{{ ins.stock_seguridad }} {{ ins.unidad }}</td>
+            <td>
+              <form method="post" action="{{ url_for('inventario_ajustar_insumo') }}" class="d-flex gap-1">
+                <input type="hidden" name="insumo_id" value="{{ ins.id }}">
+                <input type="number" name="stock_actual" value="{{ ins.stock_actual }}"
+                       min="0" step="0.001" class="form-control form-control-sm" style="width:90px">
+                <button class="btn btn-xs btn-outline-primary" title="Guardar">
+                  <i class="bi bi-check"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

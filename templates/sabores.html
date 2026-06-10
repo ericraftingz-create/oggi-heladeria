@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Sabores{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <h1><i class="bi bi-journal-text me-2"></i>Sabores</h1>
+  <a href="{{ url_for('sabor_nuevo') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo sabor</a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Sabor</th>
+          <th class="text-center">Disponibilidad</th>
+          <th class="text-center">Stock reservas</th>
+          <th class="text-center">Receta</th>
+          <th class="text-center">Proceso</th>
+          <th>Notas</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in sabores %}
+      <tr>
+        <td class="fw-semibold">{{ s.nombre }}</td>
+        <td class="text-center">
+          <form method="post" action="{{ url_for('sabor_disponibilidad', id=s.id) }}" class="d-flex justify-content-center">
+            <select name="disponibilidad" class="form-select form-select-sm w-auto"
+                    onchange="this.form.submit()"
+                    style="font-size:.8rem">
+              <option value="disponible" {% if s.disponibilidad == 'disponible' %}selected{% endif %}>✅ Disponible</option>
+              <option value="bajo_pedido" {% if s.disponibilidad == 'bajo_pedido' %}selected{% endif %}>🟠 Bajo pedido</option>
+              <option value="no_disponible" {% if s.disponibilidad == 'no_disponible' %}selected{% endif %}>❌ No disponible</option>
+            </select>
+          </form>
+        </td>
+        <td class="text-center fw-bold {% if s.stock_reservas > 0 %}text-success{% else %}text-muted{% endif %}">
+          {{ s.stock_reservas }}
+        </td>
+        <td class="text-center">
+          <a href="{{ url_for('receta', id=s.id) }}" class="btn btn-xs {% if s.n_ingredientes > 0 %}btn-success{% else %}btn-outline-secondary{% endif %}">
+            {{ s.n_ingredientes }} ing.
+          </a>
+        </td>
+        <td class="text-center">
+          <a href="{{ url_for('proceso', id=s.id) }}" class="btn btn-xs {% if s.n_pasos > 0 %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">
+            {{ s.n_pasos }} pasos
+          </a>
+        </td>
+        <td class="text-muted small">{{ (s.notas or '')[:40] }}{% if s.notas and s.notas|length > 40 %}…{% endif %}</td>
+        <td class="text-end">
+          <a href="{{ url_for('cocina', id=s.id) }}" class="btn btn-xs btn-outline-primary me-1" title="Modo cocina">
+            <i class="bi bi-display"></i>
+          </a>
+          <a href="{{ url_for('sabor_editar', id=s.id) }}" class="btn btn-xs btn-outline-secondary me-1">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form method="post" action="{{ url_for('sabor_eliminar', id=s.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Eliminar {{ s.nombre }}?')">
+            <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted py-4">Sin sabores. <a href="{{ url_for('sabor_nuevo') }}">Crear el primero</a>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

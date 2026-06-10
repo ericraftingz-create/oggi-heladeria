@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <h1><i class="bi bi-people me-2"></i>Gestión de Usuarios</h1>
+</div>
+
+<div class="row g-3">
+  <!-- Lista de usuarios -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombre</th>
+              <th class="text-center">Rol</th>
+              <th>Heladería</th>
+              <th class="text-center">Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for u in usuarios %}
+          <tr class="{% if not u.activo %}text-muted{% endif %}">
+            <td class="fw-semibold">{{ u.username }}</td>
+            <td>{{ u.nombre or '—' }}</td>
+            <td class="text-center">
+              <span class="badge
+                {% if u.rol == 'superadmin' %}bg-danger
+                {% elif u.rol == 'admin' %}bg-warning text-dark
+                {% else %}bg-success{% endif %}">
+                {{ u.rol }}
+              </span>
+            </td>
+            <td class="text-muted small">{{ u.heladeria_nombre or '—' }}</td>
+            <td class="text-center">
+              <span class="badge {% if u.activo %}bg-success{% else %}bg-secondary{% endif %}">
+                {% if u.activo %}Activo{% else %}Inactivo{% endif %}
+              </span>
+            </td>
+            <td class="text-end d-flex gap-1 justify-content-end">
+              <a href="{{ url_for('usuario_editar', id=u.id) }}" class="btn btn-xs btn-outline-primary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{{ url_for('usuario_toggle', id=u.id) }}" class="d-inline">
+                <button class="btn btn-xs btn-outline-warning" title="{% if u.activo %}Desactivar{% else %}Activar{% endif %}">
+                  <i class="bi bi-{% if u.activo %}pause{% else %}play{% endif %}"></i>
+                </button>
+              </form>
+              {% if u.id != cu.id %}
+              <form method="post" action="{{ url_for('usuario_eliminar', id=u.id) }}" class="d-inline"
+                    onsubmit="return confirm('¿Eliminar usuario {{ u.username }}?')">
+                <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">Sin usuarios.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario nuevo usuario -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">Nuevo usuario</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('usuario_nuevo') }}">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Usuario *</label>
+            <input type="text" name="username" class="form-control form-control-sm" required autocomplete="off">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Nombre completo</label>
+            <input type="text" name="nombre" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Contraseña *</label>
+            <input type="password" name="password" class="form-control form-control-sm" required autocomplete="new-password">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Rol *</label>
+            <select name="rol" class="form-select form-select-sm" id="rolSelect" onchange="toggleHel(this)">
+              <option value="superadmin">superadmin — acceso completo</option>
+              <option value="admin" selected>admin — ve todo, no edita recetas</option>
+              <option value="cliente">cliente — solo reservas y pedidos</option>
+            </select>
+          </div>
+          <div class="mb-3" id="helRow">
+            <label class="form-label small fw-semibold">Heladería (para clientes)</label>
+            <select name="heladeria_id" class="form-select form-select-sm">
+              <option value="">— Sin asignar —</option>
+              {% for h in heladerias %}
+              <option value="{{ h.id }}">{{ h.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            <i class="bi bi-person-plus me-1"></i>Crear usuario
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="alert alert-info mt-3 small">
+      <strong>Roles:</strong><br>
+      <span class="badge bg-danger">superadmin</span> — acceso total, gestiona usuarios y recetas.<br>
+      <span class="badge bg-warning text-dark">admin</span> — ve todo, produce, gestiona pedidos, pero no edita recetas ni insumos.<br>
+      <span class="badge bg-success">cliente</span> — solo ve disponibilidad y hace pedidos desde el portal.
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleHel(sel) {
+  document.getElementById('helRow').style.display =
+    sel.value === 'cliente' ? 'block' : 'none';
+}
+toggleHel(document.getElementById('rolSelect'));
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+.env
+/tmp/
+/static/pdf_temp/
+test.txt

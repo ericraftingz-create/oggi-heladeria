@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Receta – {{ sabor.nombre }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center gap-3">
+  <a href="{{ url_for('sabores') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <div>
+    <h1 class="mb-0">Receta: {{ sabor.nombre }}</h1>
+    <small class="text-muted">1 reserva = 4 litros</small>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <a href="{{ url_for('proceso', id=sabor.id) }}" class="btn btn-outline-info"><i class="bi bi-list-ol me-1"></i>Proceso</a>
+    <a href="{{ url_for('cocina', id=sabor.id) }}" class="btn btn-outline-primary"><i class="bi bi-display me-1"></i>Modo cocina</a>
+    <a href="{{ url_for('pdf_receta', id=sabor.id) }}" class="btn btn-outline-secondary"><i class="bi bi-file-pdf me-1"></i>PDF</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Lista de ingredientes -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">Ingredientes por reserva</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Insumo</th>
+              <th class="text-center">Cantidad</th>
+              <th class="text-center">Unidad</th>
+              <th class="text-center">No escala</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in ingredientes %}
+          <tr>
+            <td>{{ r.insumo_nombre }}</td>
+            <td class="text-center">
+              <form method="post" class="d-flex align-items-center justify-content-center gap-1">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="ri_id" value="{{ r.id }}">
+                <input type="number" name="cantidad" value="{{ r.cantidad }}" step="0.001" min="0"
+                       class="form-control form-control-sm" style="width:90px">
+                <input type="checkbox" name="no_escalar" class="form-check-input"
+                       {% if r.no_escalar %}checked{% endif %} title="No escalar" style="margin-left:4px">
+                <button class="btn btn-xs btn-outline-primary ms-1" title="Guardar"><i class="bi bi-check"></i></button>
+              </form>
+            </td>
+            <td class="text-center text-muted">{{ r.unidad }}</td>
+            <td class="text-center">
+              {% if r.no_escalar %}
+              <span class="badge bg-warning text-dark">Fijo</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post" class="d-inline"
+                    onsubmit="return confirm('¿Quitar {{ r.insumo_nombre }}?')">
+                <input type="hidden" name="action" value="remove">
+                <input type="hidden" name="ri_id" value="{{ r.id }}">
+                <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-3">Sin ingredientes. Agregá el primero.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agregar ingrediente -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">Agregar ingrediente</div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="action" value="add">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Insumo</label>
+            <select name="insumo_id" class="form-select form-select-sm" required>
+              <option value="">Seleccionar…</option>
+              {% for ins in todos_insumos %}
+              <option value="{{ ins.id }}">{{ ins.nombre }} ({{ ins.unidad }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Cantidad por reserva</label>
+            <input type="number" name="cantidad" class="form-control form-control-sm"
+                   step="0.001" min="0" required placeholder="0.000">
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" name="no_escalar" id="noEsc" class="form-check-input">
+            <label for="noEsc" class="form-check-label small">
+              No escalar (cantidad fija sin importar multiplicador)
+            </label>
+          </div>
+          <button type="submit" class="btn btn-success btn-sm w-100">
+            <i class="bi bi-plus-lg me-1"></i>Agregar
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% if not todos_insumos %}
+    <div class="alert alert-warning mt-2">
+      No hay insumos. <a href="{{ url_for('insumo_nuevo') }}">Crear insumos primero</a>.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

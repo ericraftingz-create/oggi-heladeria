@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ titulo }}</h1>
+</div>
+
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Nombre *</label>
+        <input type="text" name="nombre" class="form-control" required
+               value="{{ insumo.nombre if insumo else '' }}">
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label fw-semibold">Unidad *</label>
+          <select name="unidad" class="form-select" required>
+            {% for u in ['kg','g','L','ml','unidad'] %}
+            <option value="{{ u }}" {% if insumo and insumo.unidad == u %}selected{% endif %}>{{ u }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-semibold">Proveedor</label>
+          <input type="text" name="proveedor" class="form-control"
+                 value="{{ insumo.proveedor if insumo else '' }}">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-4">
+          <label class="form-label fw-semibold">Precio unitario ($)</label>
+          <input type="number" name="precio_unitario" class="form-control" step="0.01" min="0"
+                 value="{{ insumo.precio_unitario if insumo else 0 }}">
+        </div>
+        <div class="col-4">
+          <label class="form-label fw-semibold">Stock actual</label>
+          <input type="number" name="stock_actual" class="form-control" step="0.001" min="0"
+                 value="{{ insumo.stock_actual if insumo else 0 }}">
+        </div>
+        <div class="col-4">
+          <label class="form-label fw-semibold">Stock mínimo</label>
+          <input type="number" name="stock_seguridad" class="form-control" step="0.001" min="0"
+                 value="{{ insumo.stock_seguridad if insumo else 2 }}">
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="{{ url_for('insumos') }}" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

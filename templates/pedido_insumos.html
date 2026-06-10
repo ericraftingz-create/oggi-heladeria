@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Pedido a proveedores{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <h1><i class="bi bi-file-earmark-text me-2"></i>Pedido de Insumos</h1>
+  <small class="text-muted">{{ periodo_label }}</small>
+</div>
+
+<!-- Selector de período -->
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex gap-2 mb-3">
+      <a href="{{ url_for('pedido_insumos', modo='semana') }}"
+         class="btn btn-sm {% if modo == 'semana' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        <i class="bi bi-calendar-week me-1"></i>Por semana
+      </a>
+      <a href="{{ url_for('pedido_insumos', modo='mes', mes=mes, anio=anio) }}"
+         class="btn btn-sm {% if modo == 'mes' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        <i class="bi bi-calendar-month me-1"></i>Por mes
+      </a>
+    </div>
+
+    {% if modo == 'semana' %}
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+      <input type="hidden" name="modo" value="semana">
+      <label class="fw-semibold small mb-0">Del</label>
+      <input type="date" name="desde" class="form-control form-control-sm" style="width:150px" value="{{ desde }}">
+      <label class="fw-semibold small mb-0">al</label>
+      <input type="date" name="hasta" class="form-control form-control-sm" style="width:150px" value="{{ hasta }}">
+      <button type="submit" class="btn btn-sm btn-primary">Calcular</button>
+      <a href="{{ url_for('pedido_insumos', modo='semana') }}" class="btn btn-sm btn-outline-secondary">
+        Última semana
+      </a>
+    </form>
+    {% else %}
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+      <input type="hidden" name="modo" value="mes">
+      <select name="mes" class="form-select form-select-sm" style="width:130px">
+        {% for i in range(1,13) %}
+        <option value="{{ i }}" {% if i == mes %}selected{% endif %}>{{ meses[i] }}</option>
+        {% endfor %}
+      </select>
+      <select name="anio" class="form-select form-select-sm" style="width:90px">
+        {% for y in range(2024, 2029) %}
+        <option value="{{ y }}" {% if y == anio %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Calcular</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if calculo %}
+<!-- Tabla de cálculo por proveedor -->
+{% for prov, data in por_proveedor.items() %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-bold"><i class="bi bi-building me-1"></i>{{ prov }}</span>
+    <span class="text-muted small">Subtotal: ${{ '%.2f'|format(data.total) }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Insumo</th>
+          <th class="text-center">Unid.</th>
+          <th class="text-center">Usado</th>
+          <th class="text-center">Stock actual</th>
+          <th class="text-center">Stock mín.</th>
+          <th class="text-center fw-bold">A pedir</th>
+          <th class="text-end">Precio u.</th>
+          <th class="text-end">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for item in data.items %}
+      <tr {% if item.a_pedir == 0 %}class="text-muted"{% endif %}>
+        <td>{{ item.nombre }}</td>
+        <td class="text-center">{{ item.unidad }}</td>
+        <td class="text-center text-muted small">{{ item.necesaria }}</td>
+        <td class="text-center {% if item.stock_actual <= item.stock_seguridad %}text-danger fw-semibold{% endif %}">
+          {{ item.stock_actual }}
+        </td>
+        <td class="text-center small text-muted">{{ item.stock_seguridad }}</td>
+        <td class="text-center fw-bold {% if item.a_pedir > 0 %}text-primary{% endif %}">
+          {{ item.a_pedir }}
+        </td>
+        <td class="text-end small">${{ '%.2f'|format(item.precio_unitario) }}</td>
+        <td class="text-end fw-semibold">${{ '%.2f'|format(item.subtotal) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Total y botón generar pedido -->
+<div class="card border-primary mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <h5 class="mb-0">Costo total estimado</h5>
+        <small class="text-muted">Período: {{ periodo_label }}</small>
+      </div>
+      <h3 class="mb-0 text-primary">${{ '%.2f'|format(costo_total) }}</h3>
+    </div>
+    <hr>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#editarPedidoModal">
+      <i class="bi bi-pencil-square me-1"></i>Revisar y generar pedido
+    </button>
+    <small class="text-muted ms-2">Podés ajustar las cantidades antes de confirmar</small>
+  </div>
+</div>
+
+<!-- Modal: editar cantidades y confirmar -->
+<div class="modal fade" id="editarPedidoModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil-square me-1"></i>Revisar pedido — {{ periodo_label }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('pedido_insumos_confirmar') }}" id="formConfirmar">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="anio" value="{{ anio }}">
+        <input type="hidden" name="periodo_label" value="{{ periodo_label }}">
+        <input type="hidden" name="items_json" id="itemsJsonHidden" value="{{ calculo | tojson | e }}">
+
+        <div class="modal-body">
+          <p class="text-muted small mb-3">
+            Ajustá las cantidades a pedir. Los subtotales se actualizan automáticamente.
+            Poné <strong>0</strong> para excluir un insumo.
+          </p>
+          <table class="table table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Insumo</th>
+                <th class="text-center">Unid.</th>
+                <th class="text-center text-muted small">Sugerido</th>
+                <th class="text-center">Cantidad a pedir</th>
+                <th class="text-end">Precio u.</th>
+                <th class="text-end" id="colSubtotal">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="editTableBody">
+            {% for item in calculo %}
+            <tr data-precio="{{ item.precio_unitario }}" data-id="{{ item.id }}">
+              <td>
+                {{ item.nombre }}
+                <small class="text-muted d-block">{{ item.proveedor }}</small>
+              </td>
+              <td class="text-center small">{{ item.unidad }}</td>
+              <td class="text-center text-muted small">{{ item.a_pedir }}</td>
+              <td class="text-center" style="width:130px">
+                <input type="number" name="qty_{{ item.id }}"
+                       class="form-control form-control-sm text-center qty-input"
+                       value="{{ item.a_pedir }}" min="0" step="0.001"
+                       oninput="recalcRow(this)">
+              </td>
+              <td class="text-end small">${{ '%.2f'|format(item.precio_unitario) }}</td>
+              <td class="text-end fw-semibold subtotal-cell">${{ '%.2f'|format(item.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="table-primary">
+                <td colspan="5" class="fw-bold text-end">TOTAL</td>
+                <td class="text-end fw-bold" id="totalModal">${{ '%.2f'|format(costo_total) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="mt-3">
+            <label class="form-label small fw-semibold">Notas (opcional)</label>
+            <textarea name="notas" class="form-control form-control-sm" rows="2"
+                      placeholder="Observaciones para este pedido..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-circle me-1"></i>Confirmar y guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-1"></i>
+  No hay producción registrada para <strong>{{ periodo_label }}</strong>.
+  Registrá producción primero para que el cálculo tenga datos.
+</div>
+{% endif %}
+
+<!-- Historial de pedidos guardados -->
+{% if pedidos_hist %}
+<div class="card mt-2">
+  <div class="card-header fw-semibold">Pedidos guardados recientes</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Período / Notas</th>
+          <th class="text-end">Costo total</th>
+          <th class="text-center">PDF</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in pedidos_hist %}
+      <tr>
+        <td class="text-muted small">{{ p.id }}</td>
+        <td class="small">{{ p.created_at[:10] }}</td>
+        <td class="small text-muted">{{ p.notas or '—' }}</td>
+        <td class="text-end fw-semibold">${{ '%.2f'|format(p.costo_total) }}</td>
+        <td class="text-center">
+          <a href="{{ url_for('pdf_pedido_insumos_hist', id=p.id) }}"
+             class="btn btn-xs btn-outline-secondary" title="Descargar PDF">
+            <i class="bi bi-file-pdf"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function recalcRow(input) {
+  const row = input.closest('tr');
+  const precio = parseFloat(row.dataset.precio) || 0;
+  const qty = parseFloat(input.value) || 0;
+  const sub = qty * precio;
+  row.querySelector('.subtotal-cell').textContent = '$' + sub.toFixed(2);
+  recalcTotal();
+}
+
+function recalcTotal() {
+  let total = 0;
+  document.querySelectorAll('.subtotal-cell').forEach(cell => {
+    total += parseFloat(cell.textContent.replace('$', '')) || 0;
+  });
+  document.getElementById('totalModal').textContent = '$' + total.toFixed(2);
+}
+</script>
+{% endblock %}
