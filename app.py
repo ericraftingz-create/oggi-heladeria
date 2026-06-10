@@ -226,9 +226,13 @@ def insumo_editar(id):
 @superadmin_required
 def insumo_eliminar(id):
     db = get_db()
-    db.execute("DELETE FROM insumos WHERE id=?", (id,))
-    db.commit(); db.close()
-    flash('Insumo eliminado', 'warning')
+    try:
+        db.execute("DELETE FROM insumos WHERE id=?", (id,))
+        db.commit()
+        flash('Insumo eliminado', 'warning')
+    except Exception:
+        flash('No se puede eliminar: este insumo está en uso en una o más recetas. Primero quitalo de las recetas.', 'danger')
+    db.close()
     return redirect(url_for('insumos'))
 
 @app.route('/insumos/<int:id>/entrada', methods=['POST'])
