@@ -73,6 +73,76 @@
 
   <!-- Agregar ingrediente -->
   <div class="col-md-4">
+    <!-- Bases en la receta -->
+    {% if todas_bases %}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        Bases usadas en este sabor
+        <a href="{{ url_for('bases') }}" class="btn btn-xs btn-outline-secondary">Ver bases</a>
+      </div>
+      <div class="card-body p-0">
+        {% if bases_receta %}
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Base</th>
+              <th class="text-center">kg/reserva</th>
+              <th class="text-center">Stock</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in bases_receta %}
+          <tr>
+            <td>
+              <a href="{{ url_for('base_cocina', id=r.base_id) }}" class="text-decoration-none">{{ r.base_nombre }}</a>
+              {% if r.no_escalar %}<span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">Fijo</span>{% endif %}
+            </td>
+            <td class="text-center">
+              <form method="post" class="d-inline-flex align-items-center gap-1">
+                <input type="hidden" name="action" value="update_base">
+                <input type="hidden" name="rb_id" value="{{ r.id }}">
+                <input type="number" name="cantidad_kg" value="{{ r.cantidad_kg }}" step="0.001" min="0"
+                       class="form-control form-control-sm text-center" style="width:75px">
+                <button class="btn btn-xs btn-outline-primary">✓</button>
+              </form>
+            </td>
+            <td class="text-center small {% if r.stock_kg >= r.cantidad_kg %}text-success{% else %}text-danger{% endif %}">
+              {{ '%.1f'|format(r.stock_kg) }} kg
+            </td>
+            <td>
+              <form method="post" onsubmit="return confirm('¿Quitar base?')">
+                <input type="hidden" name="action" value="remove_base">
+                <input type="hidden" name="rb_id" value="{{ r.id }}">
+                <button class="btn btn-xs btn-outline-danger"><i class="bi bi-x"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small p-2 mb-0">Sin bases en esta receta.</p>
+        {% endif %}
+        <!-- Agregar base -->
+        <div class="p-2 border-top">
+          <form method="post" class="d-flex gap-1 align-items-center flex-wrap">
+            <input type="hidden" name="action" value="add_base">
+            <select name="base_id" class="form-select form-select-sm" style="min-width:110px" required>
+              <option value="">Base…</option>
+              {% for b in todas_bases %}
+              <option value="{{ b.id }}">{{ b.nombre }}</option>
+              {% endfor %}
+            </select>
+            <input type="number" name="cantidad_kg" class="form-control form-control-sm"
+                   style="width:70px" step="0.001" min="0" placeholder="kg" required>
+            <button class="btn btn-xs btn-success"><i class="bi bi-plus"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="card">
       <div class="card-header">Agregar ingrediente</div>
       <div class="card-body">

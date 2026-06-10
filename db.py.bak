@@ -2,6 +2,7 @@ import sqlite3
 import os
 from werkzeug.security import generate_password_hash
 
+# Local: carpeta del proyecto. Nube (Railway): poner DATABASE_PATH=/data/heladeria.db
 _default = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'heladeria.db')
 DB_PATH = os.environ.get('DATABASE_PATH', _default)
 
@@ -54,14 +55,14 @@ def init_db():
         CREATE TABLE IF NOT EXISTS inventario_reservas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sabor_id INTEGER NOT NULL UNIQUE,
-            cantidad REAL NOT NULL DEFAULT 0,
+            cantidad INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (sabor_id) REFERENCES sabores(id)
         );
         CREATE TABLE IF NOT EXISTS produccion (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fecha DATE NOT NULL,
             sabor_id INTEGER NOT NULL,
-            cantidad REAL NOT NULL,
+            cantidad INTEGER NOT NULL,
             notas TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sabor_id) REFERENCES sabores(id)
@@ -76,7 +77,6 @@ def init_db():
             heladeria_id INTEGER NOT NULL,
             estado TEXT DEFAULT 'pendiente',
             notas TEXT DEFAULT '',
-            responsable TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (heladeria_id) REFERENCES heladerias(id)
@@ -85,7 +85,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             pedido_id INTEGER NOT NULL,
             sabor_id INTEGER NOT NULL,
-            cantidad REAL NOT NULL,
+            cantidad INTEGER NOT NULL,
             tipo_entrega TEXT DEFAULT 'stock',
             FOREIGN KEY (pedido_id) REFERENCES pedidos_internos(id) ON DELETE CASCADE,
             FOREIGN KEY (sabor_id) REFERENCES sabores(id)
@@ -122,64 +122,6 @@ def init_db():
             activo INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        CREATE TABLE IF NOT EXISTS bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            rendimiento_kg REAL DEFAULT 1,
-            notas TEXT DEFAULT ''
-        );
-        CREATE TABLE IF NOT EXISTS base_insumos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            base_id INTEGER NOT NULL,
-            insumo_id INTEGER NOT NULL,
-            cantidad REAL NOT NULL DEFAULT 0,
-            no_escalar INTEGER DEFAULT 0,
-            FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE,
-            FOREIGN KEY (insumo_id) REFERENCES insumos(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS base_pasos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            base_id INTEGER NOT NULL,
-            orden INTEGER NOT NULL DEFAULT 1,
-            descripcion TEXT NOT NULL DEFAULT '',
-            tiempo_minutos INTEGER,
-            temperatura_c REAL,
-            notas TEXT DEFAULT '',
-            FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS inventario_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            base_id INTEGER NOT NULL UNIQUE,
-            stock_kg REAL NOT NULL DEFAULT 0,
-            FOREIGN KEY (base_id) REFERENCES bases(id)
-        );
-        CREATE TABLE IF NOT EXISTS produccion_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha DATE NOT NULL,
-            base_id INTEGER NOT NULL,
-            cantidad_kg REAL NOT NULL,
-            notas TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (base_id) REFERENCES bases(id)
-        );
-        CREATE TABLE IF NOT EXISTS receta_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sabor_id INTEGER NOT NULL,
-            base_id INTEGER NOT NULL,
-            cantidad_kg REAL NOT NULL DEFAULT 0,
-            no_escalar INTEGER DEFAULT 0,
-            FOREIGN KEY (sabor_id) REFERENCES sabores(id) ON DELETE CASCADE,
-            FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS mensajes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            heladeria_id INTEGER NOT NULL,
-            contenido TEXT NOT NULL,
-            completado INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completado_at TIMESTAMP,
-            FOREIGN KEY (heladeria_id) REFERENCES heladerias(id)
-        );
     """)
     cur = conn.execute("SELECT COUNT(*) FROM heladerias")
     if cur.fetchone()[0] == 0:
@@ -194,72 +136,12 @@ def init_db():
     conn.close()
 
 def migrate_db():
-    """Run incremental migrations for columns/tables added after initial schema."""
+    """Run incremental migrations for columns added after initial schema."""
     conn = get_db()
+    # Add responsable column to pedidos_internos if missing
     try:
         conn.execute("ALTER TABLE pedidos_internos ADD COLUMN responsable TEXT DEFAULT ''")
         conn.commit()
     except Exception:
-        pass
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            rendimiento_kg REAL DEFAULT 1,
-            notas TEXT DEFAULT ''
-        );
-        CREATE TABLE IF NOT EXISTS base_insumos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            base_id INTEGER NOT NULL,
-            insumo_id INTEGER NOT NULL,
-            cantidad REAL NOT NULL DEFAULT 0,
-            no_escalar INTEGER DEFAULT 0,
-            FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE,
-            FOREIGN KEY (insumo_id) REFERENCES insumos(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS base_pasos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            base_id INTEGER NOT NULL,
-            orden INTEGER NOT NULL DEFAULT 1,
-            descripcion TEXT NOT NULL DEFAULT '',
-            tiempo_minutos INTEGER,
-            temperatura_c REAL,
-            notas TEXT DEFAULT '',
-            FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS inventario_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            base_id INTEGER NOT NULL UNIQUE,
-            stock_kg REAL NOT NULL DEFAULT 0,
-            FOREIGN KEY (base_id) REFERENCES bases(id)
-        );
-        CREATE TABLE IF NOT EXISTS produccion_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha DATE NOT NULL,
-            base_id INTEGER NOT NULL,
-            cantidad_kg REAL NOT NULL,
-            notas TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (base_id) REFERENCES bases(id)
-        );
-        CREATE TABLE IF NOT EXISTS receta_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sabor_id INTEGER NOT NULL,
-            base_id INTEGER NOT NULL,
-            cantidad_kg REAL NOT NULL DEFAULT 0,
-            no_escalar INTEGER DEFAULT 0,
-            FOREIGN KEY (sabor_id) REFERENCES sabores(id) ON DELETE CASCADE,
-            FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS mensajes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            heladeria_id INTEGER NOT NULL,
-            contenido TEXT NOT NULL,
-            completado INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completado_at TIMESTAMP,
-            FOREIGN KEY (heladeria_id) REFERENCES heladerias(id)
-        );
-    """)
-    conn.commit()
+        pass  # Column already exists
     conn.close()

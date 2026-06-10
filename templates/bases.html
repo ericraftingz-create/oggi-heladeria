@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Bases{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <h1><i class="bi bi-layers me-2"></i>Bases</h1>
+  {% if cu.is_superadmin %}
+  <a href="{{ url_for('base_nueva') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Nueva base
+  </a>
+  {% endif %}
+</div>
+
+{% if bases %}
+<div class="row g-3 mb-4">
+  {% for b in bases %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="fw-bold mb-0">{{ b.nombre }}</h6>
+          <span class="badge bg-secondary">{{ b.rendimiento_kg }} kg/tanda</span>
+        </div>
+        <div class="d-flex gap-3 mb-3">
+          <div>
+            <div class="fw-bold text-success" style="font-size:1.3rem">{{ '%.1f'|format(b.stock_kg) }}</div>
+            <div class="text-muted" style="font-size:.75rem">kg en stock</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.85rem">{{ b.n_ingredientes }} insumo{{ 's' if b.n_ingredientes != 1 }}</div>
+            <div class="text-muted" style="font-size:.85rem">{{ b.n_pasos }} paso{{ 's' if b.n_pasos != 1 }}</div>
+          </div>
+        </div>
+        {% if b.notas %}
+        <p class="text-muted small mb-2">{{ b.notas }}</p>
+        {% endif %}
+        <div class="d-flex gap-1 flex-wrap">
+          <a href="{{ url_for('base_cocina', id=b.id) }}" class="btn btn-sm btn-success">
+            <i class="bi bi-display me-1"></i>Cocina
+          </a>
+          <a href="{{ url_for('base_receta', id=b.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-list-ul me-1"></i>Receta
+          </a>
+          <a href="{{ url_for('base_proceso', id=b.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-journal-text me-1"></i>Proceso
+          </a>
+          {% if cu.is_superadmin %}
+          <a href="{{ url_for('base_editar', id=b.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form method="post" action="{{ url_for('base_eliminar', id=b.id) }}" class="mb-0"
+                onsubmit="return confirm('¿Eliminar esta base?')">
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+  Todavía no hay bases. <a href="{{ url_for('base_nueva') }}">Crear la primera</a>.
+</div>
+{% endif %}
+
+<!-- Producción de bases de hoy -->
+{% if prod_hoy %}
+<div class="card">
+  <div class="card-header">Producción de bases hoy</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>Base</th><th class="text-center">Kg producidos</th><th>Notas</th></tr>
+      </thead>
+      <tbody>
+      {% for r in prod_hoy %}
+      <tr>
+        <td>{{ r.base_nombre }}</td>
+        <td class="text-center fw-bold">{{ r.cantidad_kg }}</td>
+        <td class="text-muted small">{{ r.notas or '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -126,7 +126,7 @@
         <input type="hidden" name="mes" value="{{ mes }}">
         <input type="hidden" name="anio" value="{{ anio }}">
         <input type="hidden" name="periodo_label" value="{{ periodo_label }}">
-        <input type="hidden" name="items_json" id="itemsJsonHidden" value="{{ calculo | tojson | e }}">
+        <input type="hidden" name="items_json" id="itemsJsonHidden" value='{{ calculo | tojson }}'>
 
         <div class="modal-body">
           <p class="text-muted small mb-3">

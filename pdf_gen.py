@@ -32,13 +32,15 @@ class BasePDF(FPDF):
 
     def titulo(self, texto):
         self.set_font('Helvetica', 'B', 16)
-        self.cell(0, 10, texto, ln=True)
+        self.cell(0, 10, texto)
+        self.ln()
         self.ln(2)
 
     def subtitulo(self, texto):
         self.set_font('Helvetica', 'B', 12)
         self.set_fill_color(230, 240, 255)
-        self.cell(0, 8, texto, fill=True, ln=True)
+        self.cell(0, 8, texto, fill=True)
+        self.ln()
         self.ln(1)
 
     def th(self, cols):
@@ -64,7 +66,8 @@ def pdf_receta(sabor, ingredientes, pasos):
 
     p.titulo(f'Receta: {sabor["nombre"]}')
     p.set_font('Helvetica', '', 10)
-    p.cell(0, 6, 'Rendimiento: 1 reserva = 4 litros', ln=True)
+    p.cell(0, 6, 'Rendimiento: 1 reserva = 4 litros')
+    p.ln()
     if sabor['notas']:
         p.set_text_color(80, 80, 80)
         p.multi_cell(0, 6, f'Notas: {sabor["notas"]}')
@@ -96,7 +99,8 @@ def pdf_receta(sabor, ingredientes, pasos):
             if paso['temperatura_c']:
                 extras.append(f"Temp: {paso['temperatura_c']} C")
             if extras:
-                p.cell(0, 5, '  ' + '  |  '.join(extras), ln=True)
+                p.cell(0, 5, '  ' + '  |  '.join(extras))
+                p.ln()
             if paso['notas']:
                 p.set_text_color(100, 100, 100)
                 p.multi_cell(0, 5, f"  Nota: {paso['notas']}")
@@ -114,9 +118,15 @@ def pdf_pedido(pedido, items):
 
     p.titulo(f'Remito de Pedido #{pedido["id"]}')
     p.set_font('Helvetica', '', 11)
-    p.cell(0, 7, f'Heladeria: {pedido["heladeria_nombre"]}', ln=True)
-    p.cell(0, 7, f'Estado: {pedido["estado"].upper()}', ln=True)
-    p.cell(0, 7, f'Fecha: {str(pedido["created_at"])[:10]}', ln=True)
+    p.cell(0, 7, f'Heladeria: {pedido["heladeria_nombre"]}')
+    p.ln()
+    p.cell(0, 7, f'Estado: {pedido["estado"].upper()}')
+    p.ln()
+    if pedido.get('responsable'):
+        p.cell(0, 7, f'Solicitado por: {pedido["responsable"]}')
+        p.ln()
+    p.cell(0, 7, f'Fecha: {str(pedido["created_at"])[:10]}')
+    p.ln()
     if pedido['notas']:
         p.multi_cell(0, 7, f'Notas: {pedido["notas"]}')
     p.ln(5)
@@ -124,12 +134,13 @@ def pdf_pedido(pedido, items):
     p.th([('Sabor', 110, 'L'), ('Reservas', 40, 'C'), ('Litros', 40, 'C')])
     total_r = 0
     for item in items:
-        p.td([(item['sabor_nombre'], 110, 'L'), (item['cantidad'], 40, 'C'), (item['cantidad']*4, 40, 'C')])
-        total_r += item['cantidad']
+        qty = item['cantidad']
+        p.td([(item['sabor_nombre'], 110, 'L'), (qty, 40, 'C'), (round(qty * 4, 2), 40, 'C')])
+        total_r += qty
     p.set_font('Helvetica', 'B', 9)
     p.cell(110, 7, 'TOTAL', border=1)
-    p.cell(40, 7, str(total_r), border=1, align='C')
-    p.cell(40, 7, str(total_r * 4) + ' L', border=1, align='C')
+    p.cell(40, 7, str(round(total_r, 2)), border=1, align='C')
+    p.cell(40, 7, str(round(total_r * 4, 2)) + ' L', border=1, align='C')
     p.ln(20)
 
     p.set_font('Helvetica', '', 10)
@@ -149,7 +160,8 @@ def pdf_pedido_insumos(pedido, items):
     mes_txt = MESES[pedido['mes']] if pedido['mes'] <= 12 else str(pedido['mes'])
     p.titulo(f'Pedido de Insumos - {mes_txt} {pedido["anio"]}')
     p.set_font('Helvetica', '', 10)
-    p.cell(0, 6, f'Generado: {datetime.now().strftime("%d/%m/%Y")}', ln=True)
+    p.cell(0, 6, f'Generado: {datetime.now().strftime("%d/%m/%Y")}')
+    p.ln()
     if pedido['notas']:
         p.multi_cell(0, 6, f'Notas: {pedido["notas"]}')
     p.ln(4)
@@ -167,7 +179,7 @@ def pdf_pedido_insumos(pedido, items):
         sub_prov = 0
         for item in grupo:
             p.td([
-                (item['insumo_nombre'], 70, 'L'),
+                (item['nombre'], 70, 'L'),
                 (item['unidad'], 18, 'C'),
                 (round(item['cantidad_pedir'], 2), 25, 'C'),
                 (f"${item['precio_unitario']:.2f}", 27, 'C'),
@@ -181,7 +193,8 @@ def pdf_pedido_insumos(pedido, items):
         grand_total += sub_prov
 
     p.set_font('Helvetica', 'B', 12)
-    p.cell(0, 10, f'TOTAL DEL PEDIDO: ${grand_total:.2f}', align='R', ln=True)
+    p.cell(0, 10, f'TOTAL DEL PEDIDO: ${grand_total:.2f}', align='R')
+    p.ln()
 
     path = os.path.join(TEMP, f'hel_insumos_{pedido["id"]}.pdf')
     p.output(path)

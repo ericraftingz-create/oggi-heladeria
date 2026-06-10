@@ -136,6 +136,9 @@
   <a href="{{ url_for('sabores') }}" class="nav-link {% if 'sabor' in (request.endpoint or '') or request.endpoint in ['receta','proceso','cocina'] %}active{% endif %}">
     <i class="bi bi-journal-text"></i> Sabores y recetas
   </a>
+  <a href="{{ url_for('bases') }}" class="nav-link {% if 'base' in (request.endpoint or '') and request.endpoint != 'inventario_ajustar_base' %}active{% endif %}">
+    <i class="bi bi-layers"></i> Bases
+  </a>
   <a href="{{ url_for('insumos') }}" class="nav-link {% if 'insumo' in (request.endpoint or '') %}active{% endif %}">
     <i class="bi bi-bag"></i> Insumos
   </a>

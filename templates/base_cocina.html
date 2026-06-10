@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Cocina – {{ sabor.nombre }}{% endblock %}
+{% block title %}Cocina – {{ base.nombre }}{% endblock %}
 {% block head %}
 <style>
   body { background: #0d1117; }
@@ -8,7 +8,7 @@
   .mult-panel { background: #1c2128; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
   .mult-panel label { color: #8b949e; font-size:.85rem; }
   .mult-input { background: #0d1117; border: 2px solid #30363d; color: #e6edf3; border-radius: 8px;
-                font-size: 2rem; font-weight: 700; width: 120px; text-align: center; padding: .25rem .5rem; }
+                font-size: 2rem; font-weight: 700; width: 140px; text-align: center; padding: .25rem .5rem; }
   .mult-input:focus { outline: none; border-color: #58a6ff; }
   .btn-mult { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 8px;
               padding: .4rem .75rem; font-size: 1rem; cursor: pointer; }
@@ -24,7 +24,7 @@
   .ing-qty { font-size: 1.1rem; font-weight: 700; }
 
   .paso-card { background: #1c2128; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: .75rem;
-               border-left: 4px solid #30363d; transition: border-color .2s; }
+               border-left: 4px solid #30363d; transition: border-color .2s; cursor: pointer; }
   .paso-card.active { border-left-color: #58a6ff; }
   .paso-num { color: #58a6ff; font-weight: 700; font-size: 1rem; }
   .paso-desc { color: #e6edf3; font-size: 1.05rem; margin: .25rem 0; }
@@ -34,39 +34,41 @@
 
   .registrar-panel { background: #1c2128; border-radius: 12px; padding: 1.25rem; }
   .registrar-panel label { color: #8b949e; font-size: .85rem; }
-  .registrar-panel .form-control, .registrar-panel .form-select {
-    background: #0d1117; border: 1px solid #30363d; color: #e6edf3; }
-  .registrar-panel .form-control:focus, .registrar-panel .form-select:focus {
-    border-color: #58a6ff; box-shadow: none; }
+  .registrar-panel .form-control { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; }
+  .registrar-panel .form-control:focus { border-color: #58a6ff; box-shadow: none; }
+  .stock-badge { background: #161b22; color: #8b949e; border-radius: 6px; padding:.1rem .5rem; font-size:.8rem; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="cocina-header d-flex align-items-center gap-3">
-  <a href="{{ url_for('receta', id=sabor.id) }}" class="btn btn-sm btn-outline-secondary">
+  <a href="{{ url_for('base_receta', id=base.id) }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
   </a>
   <div>
-    <h1 class="mb-0 text-white" style="font-size:2rem">🍦 {{ sabor.nombre }}</h1>
-    <small class="text-muted">Modo cocina</small>
+    <h1 class="mb-0 text-white" style="font-size:2rem">🧪 {{ base.nombre }}</h1>
+    <small class="text-muted">Modo cocina — Base</small>
+  </div>
+  <div class="ms-auto">
+    <span class="stock-badge">Stock: <strong class="text-white">{{ '%.1f'|format(stock_kg) }} kg</strong></span>
   </div>
 </div>
 
-<!-- Multiplicador -->
+<!-- Escalar -->
 <div class="mult-panel">
-  <label class="d-block mb-2">Número de reservas a producir</label>
+  <label class="d-block mb-2">Kilos a producir</label>
   <div class="d-flex align-items-center gap-3 flex-wrap">
     <div class="d-flex align-items-center gap-2">
-      <button class="btn-mult" onclick="cambiarMult(-1)">−</button>
-      <input type="number" id="multInput" class="mult-input" value="1" min="1" step="1"
-             oninput="recalcular()">
-      <button class="btn-mult" onclick="cambiarMult(1)">+</button>
+      <button class="btn-mult" onclick="cambiarKg(-{{ base.rendimiento_kg }})">−</button>
+      <input type="number" id="kgInput" class="mult-input" value="{{ base.rendimiento_kg }}"
+             min="0.1" step="{{ base.rendimiento_kg }}" oninput="recalcular()">
+      <button class="btn-mult" onclick="cambiarKg({{ base.rendimiento_kg }})">+</button>
     </div>
     <div class="d-flex gap-2">
-      {% for n in [2,3,5,8,10] %}
-      <button class="btn-mult" onclick="setMult({{ n }})">×{{ n }}</button>
+      {% for m in [1,2,3,5] %}
+      <button class="btn-mult" onclick="setKg({{ base.rendimiento_kg * m }})">×{{ m }} ({{ base.rendimiento_kg * m }} kg)</button>
       {% endfor %}
     </div>
-    <div class="rendimiento ms-3" id="rendimiento">= 4 L / 1 tarro</div>
+    <div class="rendimiento ms-3" id="rendimiento">= {{ base.rendimiento_kg }} kg</div>
   </div>
 </div>
 
@@ -84,29 +86,9 @@
           </tr>
         </thead>
         <tbody id="ingBody">
-          {% if bases_receta %}
-          <tr><td colspan="3" style="color:#58a6ff;font-size:.75rem;padding:.3rem .75rem;background:#0d1117">BASES</td></tr>
-          {% for r in bases_receta %}
-          <tr data-base="{{ r.cantidad_kg }}" data-noesc="{{ 1 if r.no_escalar else 0 }}" data-stock="{{ r.stock_kg }}" data-unit="kg">
-            <td>
-              <a href="{{ url_for('base_cocina', id=r.base_id) }}" style="color:#58a6ff;text-decoration:none">{{ r.base_nombre }}</a>
-              {% if r.no_escalar %}<span class="fijo ms-1">(fijo)</span>{% endif %}
-            </td>
-            <td class="text-end">
-              <span class="ing-qty qty-val">{{ r.cantidad_kg }}</span>
-              <span class="text-muted ms-1" style="font-size:.8rem">kg</span>
-            </td>
-            <td class="text-end">
-              <span class="stock-val {% if r.stock_kg >= r.cantidad_kg %}ok{% else %}nok{% endif %}">
-                {{ r.stock_kg }}
-              </span>
-            </td>
-          </tr>
-          {% endfor %}
-          <tr><td colspan="3" style="color:#8b949e;font-size:.75rem;padding:.3rem .75rem;background:#0d1117">INSUMOS DIRECTOS</td></tr>
-          {% endif %}
           {% for r in ingredientes %}
-          <tr data-base="{{ r.cantidad }}" data-noesc="{{ 1 if r.no_escalar else 0 }}" data-stock="{{ r.stock_actual }}">
+          <tr data-base="{{ r.cantidad }}" data-noesc="{{ 1 if r.no_escalar else 0 }}"
+              data-stock="{{ r.stock_actual }}" data-rend="{{ base.rendimiento_kg }}">
             <td>
               {{ r.insumo_nombre }}
               {% if r.no_escalar %}<span class="fijo ms-1">(fijo)</span>{% endif %}
@@ -122,29 +104,25 @@
             </td>
           </tr>
           {% else %}
-          {% if not bases_receta %}
-          <tr><td colspan="3" class="text-muted text-center py-3">Sin ingredientes en receta.</td></tr>
-          {% endif %}
+          <tr><td colspan="3" class="text-muted text-center py-3">Sin ingredientes definidos.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
-    <!-- Registrar producción desde cocina -->
+    <!-- Registrar producción -->
     <div class="registrar-panel mt-3">
-      <h6 class="text-white mb-3">Registrar esta producción</h6>
-      <form method="post" action="{{ url_for('produccion') }}">
-        <input type="hidden" name="sabor_id" value="{{ sabor.id }}">
+      <h6 class="text-white mb-3">Registrar producción de base</h6>
+      <form method="post" action="{{ url_for('base_produccion', id=base.id) }}">
         <div class="row g-2 mb-2">
-          <div class="col-5">
-            <label>Reservas</label>
-            <input type="number" name="cantidad" id="regCantidad" class="form-control" value="1" min="1" required>
+          <div class="col-6">
+            <label>Kg producidos</label>
+            <input type="number" name="cantidad_kg" id="regKg" class="form-control"
+                   value="{{ base.rendimiento_kg }}" min="0.1" step="0.1" required>
           </div>
-          <div class="col-7">
+          <div class="col-6">
             <label>Fecha</label>
-            <input type="date" name="fecha" class="form-control"
-                   value=""
-                   id="regFecha">
+            <input type="date" name="fecha" class="form-control" id="regFecha">
           </div>
         </div>
         <div class="mb-2">
@@ -156,15 +134,31 @@
         </button>
       </form>
     </div>
+
+    <!-- Producciones recientes -->
+    {% if prod_reciente %}
+    <div style="background:#1c2128;border-radius:12px;padding:1rem;margin-top:.75rem">
+      <h6 class="text-white mb-2" style="font-size:.85rem">Últimas producciones</h6>
+      {% for r in prod_reciente %}
+      <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.82rem">
+        <span class="text-muted">{{ r.fecha }}</span>
+        <span class="text-white fw-bold">{{ r.cantidad_kg }} kg</span>
+        <form method="post" action="{{ url_for('base_produccion_eliminar', id=base.id, pid=r.id) }}"
+              onsubmit="return confirm('¿Eliminar? Se revertirán los stocks.')">
+          <button class="btn btn-xs btn-outline-danger py-0 px-1"><i class="bi bi-x"></i></button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 
-  <!-- Proceso paso a paso -->
+  <!-- Proceso -->
   <div class="col-lg-7">
     <h6 class="text-white mb-2">Proceso de elaboración</h6>
     {% if pasos %}
     {% for paso in pasos %}
-    <div class="paso-card {% if loop.first %}active{% endif %}" id="paso{{ paso.id }}"
-         onclick="activarPaso(this)">
+    <div class="paso-card {% if loop.first %}active{% endif %}" onclick="activarPaso(this)">
       <div class="paso-num">Paso {{ paso.orden }}</div>
       <div class="paso-desc">{{ paso.descripcion }}</div>
       <div class="paso-meta">
@@ -183,7 +177,7 @@
     {% else %}
     <div class="paso-card">
       <div class="text-muted">Sin proceso definido.
-        <a href="{{ url_for('proceso', id=sabor.id) }}" class="text-info">Agregar pasos</a>.
+        <a href="{{ url_for('base_proceso', id=base.id) }}" class="text-info">Agregar pasos</a>.
       </div>
     </div>
     {% endif %}
@@ -193,44 +187,36 @@
 {% endblock %}
 {% block scripts %}
 <script>
-const SABOR_ID = {{ sabor.id }};
+const RENDIMIENTO = {{ base.rendimiento_kg }};
 
-function setFechaHoy() {
-  const d = new Date();
-  const s = d.toISOString().split('T')[0];
-  document.getElementById('regFecha').value = s;
-}
-setFechaHoy();
+document.getElementById('regFecha').value = new Date().toISOString().split('T')[0];
 
-function cambiarMult(delta) {
-  const inp = document.getElementById('multInput');
-  inp.value = Math.max(1, parseInt(inp.value || 1) + delta);
+function cambiarKg(delta) {
+  const inp = document.getElementById('kgInput');
+  inp.value = Math.max(0.1, (parseFloat(inp.value) || RENDIMIENTO) + delta).toFixed(1);
   recalcular();
 }
-function setMult(n) {
-  document.getElementById('multInput').value = n;
+function setKg(v) {
+  document.getElementById('kgInput').value = v;
   recalcular();
-  document.getElementById('regCantidad').value = n;
 }
-
 function recalcular() {
-  const mult = Math.max(1, parseFloat(document.getElementById('multInput').value) || 1);
-  document.getElementById('regCantidad').value = mult;
-
-  document.getElementById('rendimiento').textContent =
-    `= ${mult * 4} L / ${mult} tarro${mult !== 1 ? 's' : ''}`;
+  const kg = Math.max(0.1, parseFloat(document.getElementById('kgInput').value) || RENDIMIENTO);
+  document.getElementById('regKg').value = kg;
+  document.getElementById('rendimiento').textContent = `= ${kg} kg`;
 
   document.querySelectorAll('#ingBody tr[data-base]').forEach(row => {
     const base = parseFloat(row.dataset.base);
     const noEsc = row.dataset.noesc === '1';
     const stock = parseFloat(row.dataset.stock);
+    const rend = parseFloat(row.dataset.rend) || RENDIMIENTO;
+    const mult = kg / rend;
     const qty = noEsc ? base : +(base * mult).toFixed(4);
     row.querySelector('.qty-val').textContent = qty;
     const sv = row.querySelector('.stock-val');
     sv.className = 'stock-val ' + (stock >= qty ? 'ok' : 'nok');
   });
 }
-
 function activarPaso(el) {
   document.querySelectorAll('.paso-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');

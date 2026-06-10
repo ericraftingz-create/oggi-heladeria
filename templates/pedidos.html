@@ -3,6 +3,45 @@
 {% block content %}
 <div class="page-header d-flex align-items-center justify-content-between">
   <h1><i class="bi bi-cart3 me-2"></i>Pedidos internos</h1>
+  <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#msgModal">
+    <i class="bi bi-chat-dots me-1"></i>Enviar mensaje a heladería
+  </button>
+</div>
+
+<!-- Modal enviar mensaje -->
+<div class="modal fade" id="msgModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-chat-dots me-1"></i>Mensaje a heladería</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('mensaje_nuevo') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Heladería</label>
+            <select name="heladeria_id" class="form-select" required>
+              <option value="">Seleccionar…</option>
+              {% for h in heladerias %}
+              <option value="{{ h.id }}">{{ h.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Mensaje</label>
+            <textarea name="contenido" class="form-control" rows="3" required
+                      placeholder="Ej: Mañana no hay entrega, Necesito que preparen el freezer..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-send me-1"></i>Enviar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <div class="card">
@@ -58,8 +97,12 @@
           <span class="text-muted small">Completado</span>
           {% endif %}
         </td>
-        <td>
+        <td class="d-flex gap-1">
           <a href="{{ url_for('pedido_detalle', id=p.id) }}" class="btn btn-xs btn-outline-secondary">Ver</a>
+          <form method="post" action="{{ url_for('pedido_eliminar', id=p.id) }}"
+                onsubmit="return confirm('¿Eliminar este pedido? No se puede deshacer.')">
+            <button class="btn btn-xs btn-outline-danger">🗑</button>
+          </form>
         </td>
       </tr>
       {% endfor %}
