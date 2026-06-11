@@ -201,6 +201,11 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE base_insumos ADD COLUMN unidad TEXT DEFAULT NULL")
+        conn.commit()
+    except Exception:
+        pass
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS bases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

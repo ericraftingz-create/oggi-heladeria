@@ -568,25 +568,29 @@ def base_receta(id):
             iid = request.form['insumo_id']
             cant = float(request.form.get('cantidad', 0) or 0)
             no_esc = 1 if request.form.get('no_escalar') else 0
+            unidad = request.form.get('unidad') or None
             existe = db.execute("SELECT id FROM base_insumos WHERE base_id=? AND insumo_id=?", (id, iid)).fetchone()
             if existe:
-                db.execute("UPDATE base_insumos SET cantidad=?, no_escalar=? WHERE id=?", (cant, no_esc, existe['id']))
+                db.execute("UPDATE base_insumos SET cantidad=?, no_escalar=?, unidad=? WHERE id=?", (cant, no_esc, unidad, existe['id']))
             else:
-                db.execute("INSERT INTO base_insumos (base_id, insumo_id, cantidad, no_escalar) VALUES (?,?,?,?)",
-                           (id, iid, cant, no_esc))
+                db.execute("INSERT INTO base_insumos (base_id, insumo_id, cantidad, no_escalar, unidad) VALUES (?,?,?,?,?)",
+                           (id, iid, cant, no_esc, unidad))
             db.commit()
         elif action == 'remove':
             db.execute("DELETE FROM base_insumos WHERE id=?", (request.form['bi_id'],))
             db.commit()
         elif action == 'update':
-            db.execute("UPDATE base_insumos SET cantidad=?, no_escalar=? WHERE id=?",
+            unidad = request.form.get('unidad') or None
+            db.execute("UPDATE base_insumos SET cantidad=?, no_escalar=?, unidad=? WHERE id=?",
                        (float(request.form.get('cantidad', 0) or 0),
                         1 if request.form.get('no_escalar') else 0,
+                        unidad,
                         request.form['bi_id']))
             db.commit()
         return redirect(url_for('base_receta', id=id))
     ingredientes = db.execute("""
-        SELECT bi.*, i.nombre as insumo_nombre, i.unidad
+        SELECT bi.*, i.nombre as insumo_nombre,
+               COALESCE(bi.unidad, i.unidad) as unidad, i.unidad as unidad_insumo
         FROM base_insumos bi JOIN insumos i ON i.id=bi.insumo_id
         WHERE bi.base_id=? ORDER BY i.nombre
     """, (id,)).fetchall()
@@ -674,9 +678,15 @@ def base_produccion(id):
     """, (id, cantidad_kg))
     rendimiento = (base['rendimiento_kg'] or 1)
     mult = cantidad_kg / rendimiento
-    receta = db.execute("SELECT * FROM base_insumos WHERE base_id=?", (id,)).fetchall()
+    receta = db.execute("SELECT bi.*, i.unidad as unidad_insumo FROM base_insumos bi JOIN insumos i ON i.id=bi.insumo_id WHERE bi.base_id=?", (id,)).fetchall()
     for r in receta:
         consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * mult
+        # Convert if unit override differs from insumo native unit
+        u = r['unidad'] if r['unidad'] else r['unidad_insumo']
+        if u == 'g' and r['unidad_insumo'] == 'kg':
+            consumo /= 1000
+        elif u == 'mL' and r['unidad_insumo'] == 'L':
+            consumo /= 1000
         db.execute("UPDATE insumos SET stock_actual = MAX(0, stock_actual - ?) WHERE id=?",
                    (consumo, r['insumo_id']))
     db.commit(); db.close()
@@ -694,9 +704,14 @@ def base_produccion_eliminar(id, pid):
                    (prod['cantidad_kg'], id))
         rendimiento = (base['rendimiento_kg'] or 1)
         mult = prod['cantidad_kg'] / rendimiento
-        receta = db.execute("SELECT * FROM base_insumos WHERE base_id=?", (id,)).fetchall()
+        receta = db.execute("SELECT bi.*, i.unidad as unidad_insumo FROM base_insumos bi JOIN insumos i ON i.id=bi.insumo_id WHERE bi.base_id=?", (id,)).fetchall()
         for r in receta:
             consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * mult
+            u = r['unidad'] if r['unidad'] else r['unidad_insumo']
+            if u == 'g' and r['unidad_insumo'] == 'kg':
+                consumo /= 1000
+            elif u == 'mL' and r['unidad_insumo'] == 'L':
+                consumo /= 1000
             db.execute("UPDATE insumos SET stock_actual = stock_actual + ? WHERE id=?",
                        (consumo, r['insumo_id']))
         db.execute("DELETE FROM produccion_bases WHERE id=?", (pid,))
