@@ -173,28 +173,15 @@ def pdf_pedido_insumos(pedido, items):
         grupo = list(grupo)
         p.subtitulo(f'Proveedor: {prov}')
         p.th([
-            ('Insumo', 70, 'L'), ('Unid.', 18, 'C'),
-            ('A pedir', 25, 'C'), ('Precio', 27, 'C'), ('Subtotal', 30, 'C')
+            ('Insumo', 100, 'L'), ('Unid.', 25, 'C'), ('A pedir', 45, 'C')
         ])
-        sub_prov = 0
         for item in grupo:
             p.td([
-                (item['nombre'], 70, 'L'),
-                (item['unidad'], 18, 'C'),
-                (round(item['cantidad_pedir'], 2), 25, 'C'),
-                (f"${item['precio_unitario']:.2f}", 27, 'C'),
-                (f"${item['subtotal']:.2f}", 30, 'C'),
+                (item['nombre'], 100, 'L'),
+                (item['unidad'], 25, 'C'),
+                (round(item['cantidad_pedir'], 2), 45, 'C'),
             ])
-            sub_prov += item['subtotal']
-        p.set_font('Helvetica', 'B', 9)
-        p.cell(140, 6, f'Subtotal {prov}:', align='R')
-        p.cell(30, 6, f'${sub_prov:.2f}', border=1, align='C')
-        p.ln(8)
-        grand_total += sub_prov
-
-    p.set_font('Helvetica', 'B', 12)
-    p.cell(0, 10, f'TOTAL DEL PEDIDO: ${grand_total:.2f}', align='R')
-    p.ln()
+        p.ln(4)
 
     path = os.path.join(TEMP, f'hel_insumos_{pedido["id"]}.pdf')
     p.output(path)

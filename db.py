@@ -221,6 +221,11 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE insumos ADD COLUMN excluir_de_pedido INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception:
+        pass
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS bases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

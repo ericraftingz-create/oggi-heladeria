@@ -253,6 +253,15 @@ def insumo_toggle_semanal(id):
     db.commit(); db.close()
     return redirect(url_for('insumos'))
 
+@app.route('/insumos/<int:id>/toggle-excluir', methods=['POST'])
+@superadmin_required
+def insumo_toggle_excluir(id):
+    db = get_db()
+    actual = db.execute("SELECT COALESCE(excluir_de_pedido,0) FROM insumos WHERE id=?", (id,)).fetchone()[0]
+    db.execute("UPDATE insumos SET excluir_de_pedido=? WHERE id=?", (0 if actual else 1, id))
+    db.commit(); db.close()
+    return redirect(url_for('insumos'))
+
 @app.route('/pedido-semanal', methods=['GET', 'POST'])
 @admin_required
 def pedido_semanal():
@@ -1147,7 +1156,11 @@ def pedido_insumos():
     """, (desde, hasta)).fetchall()
     uso = {r['insumo_id']: (r['usado'] or 0) for r in uso_rows}
 
-    insumos = db.execute("SELECT * FROM insumos ORDER BY proveedor, nombre").fetchall()
+    insumos = db.execute("""
+        SELECT * FROM insumos
+        WHERE COALESCE(excluir_de_pedido,0)=0 AND COALESCE(pedido_semanal,0)=0
+        ORDER BY proveedor, nombre
+    """).fetchall()
     calculo = []
     costo_total = 0
     for ins in insumos:
