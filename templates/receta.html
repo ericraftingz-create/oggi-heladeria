@@ -83,10 +83,18 @@
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="ri_id" value="{{ r.id }}">
                 <input type="number" name="cantidad" value="{{ r.cantidad }}" step="0.001" min="0"
-                       class="form-control form-control-sm" style="width:90px">
+                       class="form-control form-control-sm" style="width:80px">
+                <select name="unidad" class="form-select form-select-sm" style="width:68px">
+                  {% set u = r.unidad %}
+                  <option value="kg"  {% if u == 'kg'  %}selected{% endif %}>kg</option>
+                  <option value="g"   {% if u == 'g'   %}selected{% endif %}>g</option>
+                  <option value="L"   {% if u == 'L'   %}selected{% endif %}>L</option>
+                  <option value="mL"  {% if u == 'mL'  %}selected{% endif %}>mL</option>
+                  <option value="u"   {% if u == 'u'   %}selected{% endif %}>u</option>
+                </select>
                 <input type="checkbox" name="no_escalar" class="form-check-input"
-                       {% if r.no_escalar %}checked{% endif %} title="No escalar" style="margin-left:4px">
-                <button class="btn btn-xs btn-outline-primary ms-1" title="Guardar"><i class="bi bi-check"></i></button>
+                       {% if r.no_escalar %}checked{% endif %} title="No escalar" style="margin-left:2px">
+                <button class="btn btn-xs btn-outline-primary" title="Guardar"><i class="bi bi-check"></i></button>
               </form>
             </td>
             <td class="text-center text-muted">{{ r.unidad }}</td>
@@ -152,8 +160,17 @@
           </div>
           <div class="mb-2">
             <label class="form-label small fw-semibold">Cantidad por reserva</label>
-            <input type="number" name="cantidad" class="form-control form-control-sm"
-                   step="0.001" min="0" required placeholder="0.000">
+            <div class="d-flex gap-1">
+              <input type="number" name="cantidad" class="form-control form-control-sm"
+                     step="0.001" min="0" required placeholder="0.000">
+              <select name="unidad" class="form-select form-select-sm" style="width:80px">
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="L">L</option>
+                <option value="mL">mL</option>
+                <option value="u">u</option>
+              </select>
+            </div>
           </div>
           <div class="mb-3 form-check">
             <input type="checkbox" name="no_escalar" id="noEsc" class="form-check-input">

@@ -338,20 +338,23 @@ def receta(id):
             iid = request.form['insumo_id']
             cant = float(request.form.get('cantidad', 0) or 0)
             no_esc = 1 if request.form.get('no_escalar') else 0
+            unidad = request.form.get('unidad') or None
             existe = db.execute("SELECT id FROM receta_insumos WHERE sabor_id=? AND insumo_id=?", (id, iid)).fetchone()
             if existe:
-                db.execute("UPDATE receta_insumos SET cantidad=?, no_escalar=? WHERE id=?", (cant, no_esc, existe['id']))
+                db.execute("UPDATE receta_insumos SET cantidad=?, no_escalar=?, unidad=? WHERE id=?", (cant, no_esc, unidad, existe['id']))
             else:
-                db.execute("INSERT INTO receta_insumos (sabor_id, insumo_id, cantidad, no_escalar) VALUES (?,?,?,?)",
-                           (id, iid, cant, no_esc))
+                db.execute("INSERT INTO receta_insumos (sabor_id, insumo_id, cantidad, no_escalar, unidad) VALUES (?,?,?,?,?)",
+                           (id, iid, cant, no_esc, unidad))
             db.commit()
         elif action == 'remove':
             db.execute("DELETE FROM receta_insumos WHERE id=?", (request.form['ri_id'],))
             db.commit()
         elif action == 'update':
-            db.execute("UPDATE receta_insumos SET cantidad=?, no_escalar=? WHERE id=?",
+            unidad = request.form.get('unidad') or None
+            db.execute("UPDATE receta_insumos SET cantidad=?, no_escalar=?, unidad=? WHERE id=?",
                        (float(request.form.get('cantidad', 0) or 0),
                         1 if request.form.get('no_escalar') else 0,
+                        unidad,
                         request.form['ri_id']))
             db.commit()
         # Bases en receta
@@ -378,7 +381,8 @@ def receta(id):
         return redirect(url_for('receta', id=id))
 
     ingredientes = db.execute("""
-        SELECT ri.*, i.nombre as insumo_nombre, i.unidad
+        SELECT ri.*, i.nombre as insumo_nombre,
+               COALESCE(ri.unidad, i.unidad) as unidad, i.unidad as unidad_insumo
         FROM receta_insumos ri JOIN insumos i ON i.id=ri.insumo_id
         WHERE ri.sabor_id=? ORDER BY i.nombre
     """, (id,)).fetchall()
@@ -761,9 +765,15 @@ def produccion():
             ON CONFLICT(sabor_id) DO UPDATE SET cantidad = cantidad + excluded.cantidad
         """, (sabor_id, cantidad))
         # Descontar insumos crudos
-        receta_ins = db.execute("SELECT * FROM receta_insumos WHERE sabor_id=?", (sabor_id,)).fetchall()
+        receta_ins = db.execute("""
+            SELECT ri.*, i.unidad as unidad_insumo FROM receta_insumos ri
+            JOIN insumos i ON i.id=ri.insumo_id WHERE ri.sabor_id=?
+        """, (sabor_id,)).fetchall()
         for r in receta_ins:
             consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * cantidad
+            u = r['unidad'] if r['unidad'] else r['unidad_insumo']
+            if u == 'g' and r['unidad_insumo'] == 'kg': consumo /= 1000
+            elif u == 'mL' and r['unidad_insumo'] == 'L': consumo /= 1000
             db.execute("UPDATE insumos SET stock_actual = MAX(0, stock_actual - ?) WHERE id=?",
                        (consumo, r['insumo_id']))
         # Descontar bases usadas en la receta
@@ -805,10 +815,17 @@ def produccion_eliminar(id):
     if prod:
         db.execute("UPDATE inventario_reservas SET cantidad = MAX(0, cantidad - ?) WHERE sabor_id=?",
                    (prod['cantidad'], prod['sabor_id']))
-        receta_ins = db.execute("SELECT * FROM receta_insumos WHERE sabor_id=?", (prod['sabor_id'],)).fetchall()
+        receta_ins = db.execute("""
+            SELECT ri.*, i.unidad as unidad_insumo FROM receta_insumos ri
+            JOIN insumos i ON i.id=ri.insumo_id WHERE ri.sabor_id=?
+        """, (prod['sabor_id'],)).fetchall()
         for r in receta_ins:
+            consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * prod['cantidad']
+            u = r['unidad'] if r['unidad'] else r['unidad_insumo']
+            if u == 'g' and r['unidad_insumo'] == 'kg': consumo /= 1000
+            elif u == 'mL' and r['unidad_insumo'] == 'L': consumo /= 1000
             db.execute("UPDATE insumos SET stock_actual = stock_actual + ? WHERE id=?",
-                       (r['cantidad'] if r['no_escalar'] else r['cantidad'] * prod['cantidad'], r['insumo_id']))
+                       (consumo, r['insumo_id']))
         receta_b = db.execute("SELECT * FROM receta_bases WHERE sabor_id=?", (prod['sabor_id'],)).fetchall()
         for r in receta_b:
             consumo_kg = r['cantidad_kg'] if r['no_escalar'] else r['cantidad_kg'] * prod['cantidad']
