@@ -14,28 +14,43 @@
           <th>Nombre</th>
           <th>Unidad</th>
           <th>Proveedor</th>
-          <th class="text-end">Precio unit.</th>
           <th class="text-center">Stock actual</th>
           <th class="text-center">Stock mínimo</th>
+          <th class="text-center" title="Mostrar en alertas de stock bajo">⚠️ Alerta</th>
+          <th class="text-center" title="Incluir en pedido semanal">📋 Semanal</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
       {% for ins in insumos %}
-      <tr class="{% if ins.stock_actual <= ins.stock_seguridad %}table-warning{% endif %}">
+      {% set en_alerta = ins.mostrar_en_alertas is none or ins.mostrar_en_alertas %}
+      {% set es_semanal = ins.pedido_semanal %}
+      <tr class="{% if ins.stock_actual <= ins.stock_seguridad and en_alerta %}table-warning{% endif %}">
         <td class="fw-semibold">{{ ins.nombre }}</td>
         <td>{{ ins.unidad }}</td>
         <td class="text-muted">{{ ins.proveedor or '—' }}</td>
-        <td class="text-end">${{ '%.2f'|format(ins.precio_unitario) }}</td>
         <td class="text-center">
           <span class="{% if ins.stock_actual <= ins.stock_seguridad %}text-danger fw-bold{% endif %}">
             {{ ins.stock_actual }} {{ ins.unidad }}
           </span>
-          {% if ins.stock_actual <= ins.stock_seguridad %}
-          <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Bajo stock mínimo"></i>
-          {% endif %}
         </td>
         <td class="text-center text-muted">{{ ins.stock_seguridad }} {{ ins.unidad }}</td>
+        <td class="text-center">
+          <form method="post" action="{{ url_for('insumo_toggle_alerta', id=ins.id) }}" class="d-inline">
+            <button class="btn btn-xs {% if en_alerta %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+                    title="{% if en_alerta %}Aparece en alertas (clic para ocultar){% else %}Oculto de alertas (clic para mostrar){% endif %}">
+              {% if en_alerta %}⚠️{% else %}—{% endif %}
+            </button>
+          </form>
+        </td>
+        <td class="text-center">
+          <form method="post" action="{{ url_for('insumo_toggle_semanal', id=ins.id) }}" class="d-inline">
+            <button class="btn btn-xs {% if es_semanal %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                    title="{% if es_semanal %}En pedido semanal (clic para quitar){% else %}No está en pedido semanal (clic para agregar){% endif %}">
+              {% if es_semanal %}📋{% else %}—{% endif %}
+            </button>
+          </form>
+        </td>
         <td class="text-end">
           <a href="{{ url_for('insumo_editar', id=ins.id) }}" class="btn btn-xs btn-outline-primary me-1">
             <i class="bi bi-pencil"></i>
@@ -47,7 +62,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="text-center text-muted py-4">Sin insumos registrados. <a href="{{ url_for('insumo_nuevo') }}">Agregar el primero</a>.</td></tr>
+      <tr><td colspan="8" class="text-center text-muted py-4">Sin insumos registrados. <a href="{{ url_for('insumo_nuevo') }}">Agregar el primero</a>.</td></tr>
       {% endfor %}
       </tbody>
     </table>

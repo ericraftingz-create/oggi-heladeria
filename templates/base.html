@@ -151,6 +151,9 @@
   <a href="{{ url_for('pedido_insumos') }}" class="nav-link {% if 'pedido_insumos' in (request.endpoint or '') %}active{% endif %}">
     <i class="bi bi-file-earmark-text"></i> Pedido a proveedores
   </a>
+  <a href="{{ url_for('pedido_semanal') }}" class="nav-link {% if request.endpoint == 'pedido_semanal' %}active{% endif %}">
+    <i class="bi bi-calendar-week"></i> Pedido semanal
+  </a>
 
   <div class="nav-section">Historial</div>
   <a href="{{ url_for('historial') }}" class="nav-link {% if request.endpoint == 'historial' %}active{% endif %}">

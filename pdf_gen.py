@@ -199,3 +199,41 @@ def pdf_pedido_insumos(pedido, items):
     path = os.path.join(TEMP, f'hel_insumos_{pedido["id"]}.pdf')
     p.output(path)
     return path
+
+
+def pdf_pedido_semanal(items):
+    """Returns PDF bytes for a simple weekly fresh-ingredient order."""
+    import io
+    p = BasePDF()
+    p.add_page()
+    p.set_auto_page_break(True, 15)
+
+    fecha = datetime.now().strftime('%d/%m/%Y')
+    p.set_font('Helvetica', 'B', 14)
+    p.cell(0, 10, 'Pedido Semanal de Frutas / Frescos', align='C')
+    p.ln(12)
+    p.set_font('Helvetica', '', 10)
+    p.set_text_color(100, 100, 100)
+    p.cell(0, 6, f'Fecha: {fecha}', align='L')
+    p.ln(10)
+    p.set_text_color(0, 0, 0)
+
+    # Table header
+    p.set_fill_color(240, 240, 240)
+    p.set_font('Helvetica', 'B', 10)
+    p.cell(100, 8, 'Insumo', border=1, fill=True)
+    p.cell(40, 8, 'Cantidad', border=1, fill=True, align='C')
+    p.cell(40, 8, 'Unidad', border=1, fill=True, align='C')
+    p.ln()
+
+    p.set_font('Helvetica', '', 10)
+    for item in items:
+        p.cell(100, 8, item['nombre'], border=1)
+        cant = item['cantidad']
+        p.cell(40, 8, str(cant) if cant else '', border=1, align='C')
+        p.cell(40, 8, item['unidad'], border=1, align='C')
+        p.ln()
+
+    buf = io.BytesIO()
+    p.output(buf)
+    return buf.getvalue()

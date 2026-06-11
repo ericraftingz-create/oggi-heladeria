@@ -150,7 +150,7 @@ def index():
         WHERE p.fecha=? ORDER BY p.created_at DESC
     """, (hoy,)).fetchall()
     stock_bajo = db.execute(
-        "SELECT * FROM insumos WHERE stock_actual <= stock_seguridad ORDER BY nombre"
+        "SELECT * FROM insumos WHERE stock_actual <= stock_seguridad AND COALESCE(mostrar_en_alertas,1)=1 ORDER BY nombre"
     ).fetchall()
     inventario = db.execute("""
         SELECT s.nombre, ir.cantidad, s.disponibilidad
@@ -234,6 +234,45 @@ def insumo_eliminar(id):
         flash('No se puede eliminar: este insumo está en uso en una o más recetas. Primero quitalo de las recetas.', 'danger')
     db.close()
     return redirect(url_for('insumos'))
+
+@app.route('/insumos/<int:id>/toggle-alerta', methods=['POST'])
+@superadmin_required
+def insumo_toggle_alerta(id):
+    db = get_db()
+    actual = db.execute("SELECT COALESCE(mostrar_en_alertas,1) FROM insumos WHERE id=?", (id,)).fetchone()[0]
+    db.execute("UPDATE insumos SET mostrar_en_alertas=? WHERE id=?", (0 if actual else 1, id))
+    db.commit(); db.close()
+    return redirect(url_for('insumos'))
+
+@app.route('/insumos/<int:id>/toggle-semanal', methods=['POST'])
+@superadmin_required
+def insumo_toggle_semanal(id):
+    db = get_db()
+    actual = db.execute("SELECT COALESCE(pedido_semanal,0) FROM insumos WHERE id=?", (id,)).fetchone()[0]
+    db.execute("UPDATE insumos SET pedido_semanal=? WHERE id=?", (0 if actual else 1, id))
+    db.commit(); db.close()
+    return redirect(url_for('insumos'))
+
+@app.route('/pedido-semanal', methods=['GET', 'POST'])
+@admin_required
+def pedido_semanal():
+    db = get_db()
+    insumos = db.execute(
+        "SELECT * FROM insumos WHERE COALESCE(pedido_semanal,0)=1 ORDER BY nombre"
+    ).fetchall()
+    if request.method == 'POST':
+        from pdf_gen import pdf_pedido_semanal
+        items = []
+        for ins in insumos:
+            cant = float(request.form.get(f'qty_{ins["id"]}', 0) or 0)
+            items.append({'nombre': ins['nombre'], 'unidad': ins['unidad'], 'cantidad': cant})
+        pdf_bytes = pdf_pedido_semanal(items)
+        db.close()
+        from flask import Response
+        return Response(pdf_bytes, mimetype='application/pdf',
+                        headers={'Content-Disposition': 'inline; filename=pedido_semanal.pdf'})
+    db.close()
+    return render_template('pedido_semanal.html', insumos=insumos)
 
 @app.route('/insumos/<int:id>/entrada', methods=['POST'])
 @admin_required
