@@ -322,9 +322,10 @@ def sabor_nuevo():
     if request.method == 'POST':
         db = get_db()
         cur = db.execute("""
-            INSERT INTO sabores (nombre, disponibilidad, disponibilidad_manual, notas)
-            VALUES (?,?,1,?)
-        """, (request.form['nombre'], request.form.get('disponibilidad', 'bajo_pedido'), request.form.get('notas', '')))
+            INSERT INTO sabores (nombre, disponibilidad, disponibilidad_manual, notas, vida_util_dias)
+            VALUES (?,?,1,?,?)
+        """, (request.form['nombre'], request.form.get('disponibilidad', 'bajo_pedido'),
+              request.form.get('notas', ''), int(request.form.get('vida_util_dias') or 7)))
         sid = cur.lastrowid
         db.execute("INSERT INTO inventario_reservas (sabor_id, cantidad) VALUES (?,0)", (sid,))
         db.commit(); db.close()
@@ -339,9 +340,9 @@ def sabor_editar(id):
     sabor = db.execute("SELECT * FROM sabores WHERE id=?", (id,)).fetchone()
     if request.method == 'POST':
         db.execute("""
-            UPDATE sabores SET nombre=?, disponibilidad=?, disponibilidad_manual=1, notas=? WHERE id=?
+            UPDATE sabores SET nombre=?, disponibilidad=?, disponibilidad_manual=1, notas=?, vida_util_dias=? WHERE id=?
         """, (request.form['nombre'], request.form.get('disponibilidad', 'bajo_pedido'),
-              request.form.get('notas', ''), id))
+              request.form.get('notas', ''), int(request.form.get('vida_util_dias') or 7), id))
         db.commit(); db.close()
         flash('Sabor actualizado', 'success')
         return redirect(url_for('sabores'))
@@ -802,37 +803,69 @@ def api_base_escalar(id):
 def produccion():
     db = get_db()
     if request.method == 'POST':
-        sabor_id = int(request.form['sabor_id'])
-        cantidad = float(request.form['cantidad'])
+        tipo_prod = request.form.get('tipo_prod', 'sabor')
         fecha = request.form.get('fecha', date.today().isoformat())
         notas = request.form.get('notas', '')
-        db.execute("INSERT INTO produccion (fecha, sabor_id, cantidad, notas) VALUES (?,?,?,?)",
-                   (fecha, sabor_id, cantidad, notas))
-        db.execute("""
-            INSERT INTO inventario_reservas (sabor_id, cantidad) VALUES (?,?)
-            ON CONFLICT(sabor_id) DO UPDATE SET cantidad = cantidad + excluded.cantidad
-        """, (sabor_id, cantidad))
-        # Descontar insumos crudos
-        receta_ins = db.execute("""
-            SELECT ri.*, i.unidad as unidad_insumo FROM receta_insumos ri
-            JOIN insumos i ON i.id=ri.insumo_id WHERE ri.sabor_id=?
-        """, (sabor_id,)).fetchall()
-        for r in receta_ins:
-            consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * cantidad
-            u = r['unidad'] if r['unidad'] else r['unidad_insumo']
-            if u == 'g' and r['unidad_insumo'] == 'kg': consumo /= 1000
-            elif u == 'mL' and r['unidad_insumo'] == 'L': consumo /= 1000
-            db.execute("UPDATE insumos SET stock_actual = MAX(0, stock_actual - ?) WHERE id=?",
-                       (consumo, r['insumo_id']))
-        # Descontar bases usadas en la receta
-        receta_b = db.execute("SELECT * FROM receta_bases WHERE sabor_id=?", (sabor_id,)).fetchall()
-        for r in receta_b:
-            consumo_kg = r['cantidad_kg'] if r['no_escalar'] else r['cantidad_kg'] * cantidad
-            db.execute("UPDATE inventario_bases SET stock_kg = MAX(0, stock_kg - ?) WHERE base_id=?",
-                       (consumo_kg, r['base_id']))
-        db.commit()
-        actualizar_disponibilidad(sabor_id)
-        flash(f'Producción registrada: {cantidad} reserva(s) = {round(cantidad*4,2)} L', 'success')
+
+        if tipo_prod == 'base':
+            base_id = int(request.form['base_id'])
+            cantidad_kg = float(request.form.get('cantidad_kg', 0) or 0)
+            if cantidad_kg <= 0:
+                flash('La cantidad debe ser mayor a 0.', 'warning')
+                db.close(); return redirect(url_for('produccion'))
+            base = db.execute("SELECT * FROM bases WHERE id=?", (base_id,)).fetchone()
+            db.execute("INSERT INTO produccion_bases (fecha, base_id, cantidad_kg, notas) VALUES (?,?,?,?)",
+                       (fecha, base_id, cantidad_kg, notas))
+            db.execute("""
+                INSERT INTO inventario_bases (base_id, stock_kg) VALUES (?,?)
+                ON CONFLICT(base_id) DO UPDATE SET stock_kg = stock_kg + excluded.stock_kg
+            """, (base_id, cantidad_kg))
+            rendimiento = (base['rendimiento_kg'] or 1)
+            mult = cantidad_kg / rendimiento
+            receta = db.execute("SELECT bi.*, i.unidad as unidad_insumo FROM base_insumos bi JOIN insumos i ON i.id=bi.insumo_id WHERE bi.base_id=?", (base_id,)).fetchall()
+            for r in receta:
+                consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * mult
+                u = r['unidad'] if r['unidad'] else r['unidad_insumo']
+                if u == 'g' and r['unidad_insumo'] == 'kg': consumo /= 1000
+                elif u == 'mL' and r['unidad_insumo'] == 'L': consumo /= 1000
+                db.execute("UPDATE insumos SET stock_actual = MAX(0, stock_actual - ?) WHERE id=?",
+                           (consumo, r['insumo_id']))
+            db.commit()
+            flash(f'Base registrada: {cantidad_kg} kg de {base["nombre"]}', 'success')
+        else:
+            sabor_id = int(request.form['sabor_id'])
+            cantidad = float(request.form['cantidad'])
+            vencimiento = request.form.get('fecha_vencimiento') or None
+            db.execute("INSERT INTO produccion (fecha, sabor_id, cantidad, notas) VALUES (?,?,?,?)",
+                       (fecha, sabor_id, cantidad, notas))
+            prod_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            if vencimiento:
+                db.execute("INSERT OR REPLACE INTO produccion_etiquetas (produccion_id, fecha_vencimiento) VALUES (?,?)",
+                           (prod_id, vencimiento))
+            db.execute("""
+                INSERT INTO inventario_reservas (sabor_id, cantidad) VALUES (?,?)
+                ON CONFLICT(sabor_id) DO UPDATE SET cantidad = cantidad + excluded.cantidad
+            """, (sabor_id, cantidad))
+            receta_ins = db.execute("""
+                SELECT ri.*, i.unidad as unidad_insumo FROM receta_insumos ri
+                JOIN insumos i ON i.id=ri.insumo_id WHERE ri.sabor_id=?
+            """, (sabor_id,)).fetchall()
+            for r in receta_ins:
+                consumo = r['cantidad'] if r['no_escalar'] else r['cantidad'] * cantidad
+                u = r['unidad'] if r['unidad'] else r['unidad_insumo']
+                if u == 'g' and r['unidad_insumo'] == 'kg': consumo /= 1000
+                elif u == 'mL' and r['unidad_insumo'] == 'L': consumo /= 1000
+                db.execute("UPDATE insumos SET stock_actual = MAX(0, stock_actual - ?) WHERE id=?",
+                           (consumo, r['insumo_id']))
+            receta_b = db.execute("SELECT * FROM receta_bases WHERE sabor_id=?", (sabor_id,)).fetchall()
+            for r in receta_b:
+                consumo_kg = r['cantidad_kg'] if r['no_escalar'] else r['cantidad_kg'] * cantidad
+                db.execute("UPDATE inventario_bases SET stock_kg = MAX(0, stock_kg - ?) WHERE base_id=?",
+                           (consumo_kg, r['base_id']))
+            db.commit()
+            actualizar_disponibilidad(sabor_id)
+            flash(f'Producción registrada: {cantidad} reserva(s) = {round(cantidad*4,2)} L', 'success')
+        db.close()
         return redirect(url_for('produccion'))
 
     hoy = date.today().isoformat()
@@ -840,10 +873,18 @@ def produccion():
     sabores_activos = db.execute(
         "SELECT * FROM sabores WHERE disponibilidad != 'no_disponible' ORDER BY nombre"
     ).fetchall()
+    todas_bases = db.execute("SELECT * FROM bases ORDER BY nombre").fetchall()
     registros_hoy = db.execute("""
-        SELECT p.*, s.nombre as sabor_nombre
+        SELECT p.*, s.nombre as sabor_nombre,
+               COALESCE(pe.fecha_vencimiento,'') as fecha_vencimiento
         FROM produccion p JOIN sabores s ON s.id=p.sabor_id
+        LEFT JOIN produccion_etiquetas pe ON pe.produccion_id=p.id
         WHERE p.fecha=? ORDER BY p.created_at DESC
+    """, (hoy,)).fetchall()
+    bases_hoy = db.execute("""
+        SELECT pb.*, b.nombre as base_nombre
+        FROM produccion_bases pb JOIN bases b ON b.id=pb.base_id
+        WHERE pb.fecha=? ORDER BY pb.created_at DESC
     """, (hoy,)).fetchall()
     resumen_mes = db.execute("""
         SELECT s.nombre, SUM(p.cantidad) as reservas, SUM(p.cantidad)*4 as litros
@@ -852,7 +893,8 @@ def produccion():
         GROUP BY p.sabor_id ORDER BY reservas DESC
     """, (mes_actual,)).fetchall()
     db.close()
-    return render_template('produccion.html', sabores=sabores_activos, registros_hoy=registros_hoy,
+    return render_template('produccion.html', sabores=sabores_activos, bases=todas_bases,
+                           registros_hoy=registros_hoy, bases_hoy=bases_hoy,
                            resumen_mes=resumen_mes, hoy=hoy, mes_actual=mes_actual)
 
 @app.route('/produccion/<int:id>/eliminar', methods=['POST'])
@@ -884,6 +926,137 @@ def produccion_eliminar(id):
         flash('Registro eliminado y stocks revertidos', 'warning')
     db.close()
     return redirect(url_for('produccion'))
+
+# ─────────────────────────────────────────────
+# PRODUCCION PDF + ETIQUETA
+# ─────────────────────────────────────────────
+
+@app.route('/produccion/pdf')
+@admin_required
+def produccion_pdf():
+    from pdf_gen import pdf_produccion_report
+    db = get_db()
+    periodo = request.args.get('periodo', 'custom')
+    hoy = date.today()
+    if periodo == 'semana':
+        desde = (hoy - timedelta(days=hoy.weekday())).isoformat()
+        hasta = hoy.isoformat()
+        label = f"Semana del {desde} al {hasta}"
+    elif periodo == 'mes':
+        desde = hoy.replace(day=1).isoformat()
+        hasta = hoy.isoformat()
+        label = hoy.strftime('%B %Y')
+    elif periodo == 'anio':
+        desde = hoy.replace(month=1, day=1).isoformat()
+        hasta = hoy.isoformat()
+        label = str(hoy.year)
+    else:
+        desde = request.args.get('desde', hoy.replace(day=1).isoformat())
+        hasta = request.args.get('hasta', hoy.isoformat())
+        label = f"{desde} al {hasta}"
+    registros = db.execute("""
+        SELECT p.fecha, s.nombre as sabor, p.cantidad, p.cantidad*4 as litros, p.notas
+        FROM produccion p JOIN sabores s ON s.id=p.sabor_id
+        WHERE p.fecha BETWEEN ? AND ? ORDER BY p.fecha DESC, p.created_at DESC
+    """, (desde, hasta)).fetchall()
+    db.close()
+    from flask import Response
+    pdf_bytes = pdf_produccion_report(registros, label)
+    return Response(pdf_bytes, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'inline; filename=produccion_{desde}_{hasta}.pdf'})
+
+@app.route('/produccion/<int:id>/etiqueta')
+@admin_required
+def produccion_etiqueta(id):
+    from pdf_gen import pdf_etiqueta
+    db = get_db()
+    prod = db.execute("""
+        SELECT p.*, s.nombre as sabor_nombre, s.vida_util_dias,
+               COALESCE(pe.fecha_vencimiento,'') as fecha_vencimiento,
+               u.nombre as usuario_nombre
+        FROM produccion p
+        JOIN sabores s ON s.id=p.sabor_id
+        LEFT JOIN produccion_etiquetas pe ON pe.produccion_id=p.id
+        LEFT JOIN usuarios u ON u.username=?
+        WHERE p.id=?
+    """, (session.get('username',''), id)).fetchone()
+    db.close()
+    if not prod:
+        flash('Producción no encontrada', 'danger')
+        return redirect(url_for('produccion'))
+    from flask import Response
+    pdf_bytes = pdf_etiqueta(prod, session.get('nombre') or session.get('username',''))
+    return Response(pdf_bytes, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'inline; filename=etiqueta_{id}.pdf'})
+
+# ─────────────────────────────────────────────
+# MOVIMIENTOS DE STOCK
+# ─────────────────────────────────────────────
+
+@app.route('/movimientos', methods=['GET', 'POST'])
+@admin_required
+def movimientos():
+    db = get_db()
+    if request.method == 'POST':
+        tipo   = request.form['tipo']
+        target = request.form.get('target', 'insumo')
+        cant   = float(request.form.get('cantidad', 0) or 0)
+        motivo = request.form.get('motivo', '')
+        fecha  = request.form.get('fecha', date.today().isoformat())
+        venc   = request.form.get('fecha_vencimiento') or None
+        usuario = session.get('nombre') or session.get('username', '')
+        iid = request.form.get('insumo_id') or None
+        bid = request.form.get('base_id') or None
+        if cant <= 0:
+            flash('La cantidad debe ser mayor a 0.', 'warning')
+        else:
+            db.execute("""
+                INSERT INTO movimientos_stock (tipo, target, insumo_id, base_id, cantidad, motivo, fecha, fecha_vencimiento, usuario)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            """, (tipo, target, iid, bid, cant, motivo, fecha, venc, usuario))
+            # Aplicar al stock
+            if target == 'insumo' and iid:
+                ins = db.execute("SELECT unidad FROM insumos WHERE id=?", (iid,)).fetchone()
+                if tipo == 'entrada':
+                    db.execute("UPDATE insumos SET stock_actual = stock_actual + ? WHERE id=?", (cant, iid))
+                else:
+                    db.execute("UPDATE insumos SET stock_actual = MAX(0, stock_actual - ?) WHERE id=?", (cant, iid))
+            elif target == 'base' and bid:
+                if tipo == 'entrada':
+                    db.execute("""
+                        INSERT INTO inventario_bases (base_id, stock_kg) VALUES (?,?)
+                        ON CONFLICT(base_id) DO UPDATE SET stock_kg = stock_kg + excluded.stock_kg
+                    """, (bid, cant))
+                else:
+                    db.execute("UPDATE inventario_bases SET stock_kg = MAX(0, stock_kg - ?) WHERE base_id=?", (cant, bid))
+            db.commit()
+            flash(f'Movimiento registrado: {tipo} de {cant}', 'success')
+        db.close()
+        return redirect(url_for('movimientos'))
+
+    insumos = db.execute("SELECT id, nombre, unidad, stock_actual FROM insumos ORDER BY nombre").fetchall()
+    bases   = db.execute("""
+        SELECT b.id, b.nombre, COALESCE(ib.stock_kg,0) as stock_kg
+        FROM bases b LEFT JOIN inventario_bases ib ON ib.base_id=b.id ORDER BY b.nombre
+    """).fetchall()
+    movs = db.execute("""
+        SELECT m.*, i.nombre as insumo_nombre, b.nombre as base_nombre
+        FROM movimientos_stock m
+        LEFT JOIN insumos i ON i.id=m.insumo_id
+        LEFT JOIN bases b ON b.id=m.base_id
+        ORDER BY m.created_at DESC LIMIT 100
+    """).fetchall()
+    db.close()
+    return render_template('movimientos.html', insumos=insumos, bases=bases, movimientos=movs, hoy=date.today().isoformat())
+
+# API: pedidos pendientes (para notificaciones JS)
+@app.route('/api/pedidos/pending-count')
+@admin_required
+def api_pedidos_pending():
+    db = get_db()
+    n = db.execute("SELECT COUNT(*) FROM pedidos_internos WHERE estado='pendiente'").fetchone()[0]
+    db.close()
+    return {'count': n}
 
 # ─────────────────────────────────────────────
 # INVENTARIO

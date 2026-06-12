@@ -154,6 +154,9 @@
   <a href="{{ url_for('pedido_semanal') }}" class="nav-link {% if request.endpoint == 'pedido_semanal' %}active{% endif %}">
     <i class="bi bi-calendar-week"></i> Pedido semanal
   </a>
+  <a href="{{ url_for('movimientos') }}" class="nav-link {% if request.endpoint == 'movimientos' %}active{% endif %}">
+    <i class="bi bi-arrow-left-right"></i> Movimientos
+  </a>
 
   <div class="nav-section">Historial</div>
   <a href="{{ url_for('historial') }}" class="nav-link {% if request.endpoint == 'historial' %}active{% endif %}">
@@ -218,5 +221,47 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}
+
+{% if cu and cu.rol in ('superadmin','admin') %}
+<!-- Notificación de pedidos pendientes -->
+<div id="pedidoToast" class="toast align-items-center text-bg-warning border-0 position-fixed bottom-0 end-0 m-3" role="alert" style="z-index:9999">
+  <div class="d-flex">
+    <div class="toast-body fw-semibold">
+      🛒 <span id="toastMsg">Nuevo pedido pendiente</span>
+    </div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+  </div>
+</div>
+<script>
+(function() {
+  let lastCount = null;
+  const toast = new bootstrap.Toast(document.getElementById('pedidoToast'), {delay: 6000});
+  function playBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.4, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.6);
+    } catch(e) {}
+  }
+  function checkPedidos() {
+    fetch('/api/pedidos/pending-count').then(r => r.json()).then(data => {
+      if (lastCount !== null && data.count > lastCount) {
+        document.getElementById('toastMsg').textContent =
+          data.count === 1 ? '1 pedido pendiente' : data.count + ' pedidos pendientes';
+        playBeep();
+        toast.show();
+      }
+      lastCount = data.count;
+    }).catch(() => {});
+  }
+  checkPedidos();
+  setInterval(checkPedidos, 30000);
+})();
+</script>
+{% endif %}
 </body>
 </html>

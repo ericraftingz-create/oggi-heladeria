@@ -226,6 +226,33 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE sabores ADD COLUMN vida_util_dias INTEGER DEFAULT 7")
+        conn.commit()
+    except Exception:
+        pass
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS movimientos_stock (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo TEXT NOT NULL CHECK(tipo IN ('entrada','merma','retiro')),
+            target TEXT NOT NULL DEFAULT 'insumo',
+            insumo_id INTEGER REFERENCES insumos(id),
+            base_id INTEGER REFERENCES bases(id),
+            cantidad REAL NOT NULL,
+            motivo TEXT DEFAULT '',
+            fecha DATE NOT NULL,
+            fecha_vencimiento DATE,
+            usuario TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS produccion_etiquetas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produccion_id INTEGER NOT NULL,
+            fecha_vencimiento DATE,
+            FOREIGN KEY (produccion_id) REFERENCES produccion(id) ON DELETE CASCADE
+        );
+    """)
+    conn.commit()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS bases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,62 +1,128 @@
 {% extends "base.html" %}
 {% block title %}Producción{% endblock %}
 {% block content %}
-<div class="page-header">
+<div class="page-header d-flex align-items-center justify-content-between">
   <h1><i class="bi bi-cup-hot me-2"></i>Registro de Producción</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('produccion_pdf') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-file-pdf me-1"></i>PDF Reporte
+    </a>
+  </div>
 </div>
 
 <div class="row g-3 mb-4">
-  <!-- Formulario de registro -->
+  <!-- Formulario de registro con tabs -->
   <div class="col-md-5">
     <div class="card">
-      <div class="card-header">Registrar producción</div>
-      <div class="card-body">
-        <form method="post">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Sabor</label>
-            <select name="sabor_id" class="form-select" required id="saborSel">
-              <option value="">Seleccionar sabor…</option>
-              {% for s in sabores %}
-              <option value="{{ s.id }}">{{ s.nombre }}</option>
-              {% endfor %}
-            </select>
-            <div class="mt-1">
-              <a id="linkCocina" href="#" class="small text-info d-none">
-                <i class="bi bi-display me-1"></i>Abrir modo cocina para este sabor
-              </a>
+      <div class="card-header p-0">
+        <ul class="nav nav-tabs card-header-tabs" id="prodTabs">
+          <li class="nav-item">
+            <button class="nav-link active px-3 py-2" data-bs-toggle="tab" data-bs-target="#tabSabor">
+              <i class="bi bi-cup-hot me-1"></i>Sabor
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link px-3 py-2" data-bs-toggle="tab" data-bs-target="#tabBase">
+              <i class="bi bi-layers me-1"></i>Base
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body tab-content">
+
+        <!-- TAB SABOR -->
+        <div class="tab-pane fade show active" id="tabSabor">
+          <form method="post">
+            <input type="hidden" name="tipo_prod" value="sabor">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Sabor</label>
+              <select name="sabor_id" class="form-select" required id="saborSel">
+                <option value="">Seleccionar sabor…</option>
+                {% for s in sabores %}
+                <option value="{{ s.id }}" data-vida="{{ s.vida_util_dias or 7 }}">{{ s.nombre }}</option>
+                {% endfor %}
+              </select>
+              <div class="mt-1">
+                <a id="linkCocina" href="#" class="small text-info d-none">
+                  <i class="bi bi-display me-1"></i>Abrir modo cocina
+                </a>
+              </div>
             </div>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label fw-semibold">Reservas</label>
-              <input type="number" name="cantidad" class="form-control" min="0.1" step="0.5" value="1" required>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold">Reservas</label>
+                <input type="number" name="cantidad" class="form-control" min="0.1" step="any" value="1" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Fecha</label>
+                <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+              </div>
             </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold">Fecha</label>
-              <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Vence el <small class="text-muted fw-normal">(para etiquetas)</small></label>
+              <input type="date" name="fecha_vencimiento" id="fechaVenc" class="form-control">
             </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Notas</label>
-            <input type="text" name="notas" class="form-control" placeholder="Opcional">
-          </div>
-          <button type="submit" class="btn btn-success w-100">
-            <i class="bi bi-check-circle me-1"></i>Registrar producción
-          </button>
-        </form>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Notas</label>
+              <input type="text" name="notas" class="form-control" placeholder="Opcional">
+            </div>
+            <button type="submit" class="btn btn-success w-100">
+              <i class="bi bi-check-circle me-1"></i>Registrar producción
+            </button>
+          </form>
+        </div>
+
+        <!-- TAB BASE -->
+        <div class="tab-pane fade" id="tabBase">
+          <form method="post">
+            <input type="hidden" name="tipo_prod" value="base">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Base</label>
+              <select name="base_id" class="form-select" required id="baseSel">
+                <option value="">Seleccionar base…</option>
+                {% for b in bases %}
+                <option value="{{ b.id }}">{{ b.nombre }} (tanda: {{ b.rendimiento_kg }} kg)</option>
+                {% endfor %}
+              </select>
+              <div class="mt-1">
+                <a id="linkCocinaBase" href="#" class="small text-info d-none">
+                  <i class="bi bi-display me-1"></i>Abrir modo cocina base
+                </a>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold">Kg producidos</label>
+                <input type="number" name="cantidad_kg" class="form-control" min="0.1" step="any" required placeholder="65">
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Fecha</label>
+                <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Notas</label>
+              <input type="text" name="notas" class="form-control" placeholder="Opcional">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-check-circle me-1"></i>Registrar base
+            </button>
+          </form>
+        </div>
+
       </div>
     </div>
   </div>
 
   <!-- Registros de hoy -->
   <div class="col-md-7">
-    <div class="card">
-      <div class="card-header">Producción de hoy</div>
+    <div class="card mb-3">
+      <div class="card-header">Sabores de hoy</div>
       <div class="card-body p-0">
         {% if registros_hoy %}
         <table class="table table-sm mb-0">
           <thead>
-            <tr><th>Sabor</th><th class="text-center">Reservas</th><th class="text-center">Litros</th><th>Notas</th><th></th></tr>
+            <tr><th>Sabor</th><th class="text-center">Reservas</th><th class="text-center">Litros</th><th>Vence</th><th></th></tr>
           </thead>
           <tbody>
           {% for r in registros_hoy %}
@@ -64,7 +130,14 @@
             <td>{{ r.sabor_nombre }}</td>
             <td class="text-center fw-bold">{{ r.cantidad }}</td>
             <td class="text-center text-muted">{{ r.cantidad * 4 }} L</td>
-            <td class="text-muted small">{{ r.notas or '—' }}</td>
+            <td class="text-muted small">
+              {% if r.fecha_vencimiento %}
+                {{ r.fecha_vencimiento }}
+                <a href="{{ url_for('produccion_etiqueta', id=r.id) }}" class="btn btn-xs btn-outline-warning ms-1" title="Imprimir etiqueta">
+                  <i class="bi bi-tag"></i>
+                </a>
+              {% else %}—{% endif %}
+            </td>
             <td>
               <form method="post" action="{{ url_for('produccion_eliminar', id=r.id) }}"
                     onsubmit="return confirm('¿Eliminar este registro? El stock se revertirá.')">
@@ -76,17 +149,44 @@
           </tbody>
         </table>
         {% else %}
-        <p class="text-muted p-3 mb-0">Sin producción registrada hoy.</p>
+        <p class="text-muted p-3 mb-0">Sin producción de sabores hoy.</p>
         {% endif %}
       </div>
     </div>
+
+    {% if bases_hoy %}
+    <div class="card">
+      <div class="card-header">Bases de hoy</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr><th>Base</th><th class="text-center">Kg</th><th>Notas</th></tr>
+          </thead>
+          <tbody>
+          {% for r in bases_hoy %}
+          <tr>
+            <td>{{ r.base_nombre }}</td>
+            <td class="text-center fw-bold">{{ r.cantidad_kg }}</td>
+            <td class="text-muted small">{{ r.notas or '—' }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 
-<!-- Resumen mensual -->
-{% if resumen_mes %}
-<div class="card">
-  <div class="card-header">Resumen mes actual ({{ mes_actual }})</div>
+<!-- Resumen mensual + filtro PDF -->
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Resumen mes actual ({{ mes_actual }})</span>
+    <a href="{{ url_for('produccion_pdf', periodo='mes') }}" class="btn btn-xs btn-outline-secondary">
+      <i class="bi bi-file-pdf me-1"></i>PDF este mes
+    </a>
+  </div>
+  {% if resumen_mes %}
   <div class="card-body p-0">
     <table class="table table-sm mb-0">
       <thead>
@@ -112,21 +212,43 @@
       </tfoot>
     </table>
   </div>
+  {% else %}
+  <div class="card-body"><p class="text-muted mb-0">Sin producción este mes.</p></div>
+  {% endif %}
 </div>
-{% endif %}
 
 {% endblock %}
 {% block scripts %}
 <script>
-const urls = {
-  {% for s in sabores %}
-  {{ s.id }}: '{{ url_for("cocina", id=s.id) }}',
-  {% endfor %}
+const urlsCocina = {
+  {% for s in sabores %}{{ s.id }}: '{{ url_for("cocina", id=s.id) }}',{% endfor %}
+};
+const urlsCocinaBase = {
+  {% for b in bases %}{{ b.id }}: '{{ url_for("base_cocina", id=b.id) }}',{% endfor %}
+};
+const vidaUtil = {
+  {% for s in sabores %}{{ s.id }}: {{ s.vida_util_dias or 7 }},{% endfor %}
 };
 document.getElementById('saborSel').addEventListener('change', function() {
   const link = document.getElementById('linkCocina');
-  if (this.value && urls[this.value]) {
-    link.href = urls[this.value];
+  const venc = document.getElementById('fechaVenc');
+  if (this.value) {
+    link.href = urlsCocina[this.value] || '#';
+    link.classList.remove('d-none');
+    // Auto-set vencimiento
+    const dias = vidaUtil[this.value] || 7;
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    venc.value = d.toISOString().split('T')[0];
+  } else {
+    link.classList.add('d-none');
+    venc.value = '';
+  }
+});
+document.getElementById('baseSel').addEventListener('change', function() {
+  const link = document.getElementById('linkCocinaBase');
+  if (this.value) {
+    link.href = urlsCocinaBase[this.value] || '#';
     link.classList.remove('d-none');
   } else {
     link.classList.add('d-none');

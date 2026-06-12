@@ -188,6 +188,73 @@ def pdf_pedido_insumos(pedido, items):
     return path
 
 
+def pdf_produccion_report(registros, label):
+    """PDF report of production records. Returns bytes."""
+    import io
+    p = BasePDF()
+    p.add_page()
+    p.set_auto_page_break(True, 15)
+    p.titulo(f'Reporte de Produccion')
+    p.set_font('Helvetica', '', 10)
+    p.set_text_color(100, 100, 100)
+    p.cell(0, 6, f'Periodo: {label}', align='L')
+    p.ln(10)
+    p.set_text_color(0, 0, 0)
+    p.th([('Fecha', 35, 'C'), ('Sabor', 85, 'L'), ('Reservas', 30, 'C'), ('Litros', 30, 'C')])
+    total_r = 0; total_l = 0
+    for r in registros:
+        p.td([(r['fecha'], 35, 'C'), (r['sabor'], 85, 'L'),
+              (r['cantidad'], 30, 'C'), (round(r['litros'], 1), 30, 'C')])
+        total_r += r['cantidad']; total_l += r['litros']
+    p.set_font('Helvetica', 'B', 10)
+    p.cell(120, 7, 'TOTAL', border=1, align='R')
+    p.cell(30, 7, str(round(total_r, 2)), border=1, align='C')
+    p.cell(30, 7, str(round(total_l, 1)) + ' L', border=1, align='C')
+    p.ln()
+    buf = io.BytesIO(); p.output(buf); return buf.getvalue()
+
+
+def pdf_etiqueta(prod, usuario):
+    """PDF label for a production batch (80x60 mm roll). Returns bytes."""
+    import io
+
+    class EtiquetaPDF(FPDF):
+        pass  # no header/footer
+
+    # 80 mm wide x 60 mm tall, landscape → width=80, height=60
+    p = EtiquetaPDF(orientation='L', unit='mm', format=(60, 80))
+    p.set_margins(3, 3, 3)
+    p.add_page()
+    p.set_auto_page_break(False)
+
+    # Sabor — grande y centrado
+    p.set_font('Helvetica', 'B', 18)
+    p.set_xy(0, 5)
+    p.cell(80, 10, prod['sabor_nombre'], align='C')
+
+    # Elaboración y cantidad
+    p.set_font('Helvetica', '', 8)
+    p.set_xy(0, 17)
+    p.cell(80, 5,
+           f'Elab: {prod["fecha"]}   {prod["cantidad"]} reservas ({round(prod["cantidad"]*4,1)} L)',
+           align='C')
+
+    # Vencimiento en rojo
+    if prod.get('fecha_vencimiento'):
+        p.set_font('Helvetica', 'B', 14)
+        p.set_text_color(180, 0, 0)
+        p.set_xy(0, 25)
+        p.cell(80, 9, f'VENCE: {prod["fecha_vencimiento"]}', align='C')
+        p.set_text_color(0, 0, 0)
+
+    # Productor + marca al pie
+    p.set_font('Helvetica', '', 6)
+    p.set_xy(0, 53)
+    p.cell(80, 4, f'{usuario}  |  OGGI officina gelato gusto italiano', align='C')
+
+    buf = io.BytesIO(); p.output(buf); return buf.getvalue()
+
+
 def pdf_pedido_semanal(items):
     """Returns PDF bytes for a simple weekly fresh-ingredient order."""
     import io
