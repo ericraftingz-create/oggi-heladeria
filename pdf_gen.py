@@ -214,19 +214,19 @@ def pdf_produccion_report(registros, label):
     buf = io.BytesIO(); p.output(buf); return buf.getvalue()
 
 
-def pdf_etiqueta(prod, usuario):
+def pdf_etiqueta(prod, usuario, copias=1):
     """
     Etiqueta 80x60 mm para producción — cumple requisitos Seremi Chile.
+    Genera `copias` páginas (una por tarro/unidad) — cada página = un corte en impresora térmica.
 
     Campos en prod (dict o sqlite3.Row):
       nombre / sabor_nombre   — nombre del producto
-      cantidad                — tarros o kg
+      cantidad                — tarros o kg (también determina copias si copias=None)
       tipo                    — 'reserva' | 'base'  (default: reserva)
       fecha                   — fecha elaboración  YYYY-MM-DD
       hora                    — hora elaboración   HH:MM  (default: ahora)
       fecha_vencimiento       — YYYY-MM-DD o ''
       local                   — nombre heladería destino (optional)
-      conservacion            — texto libre (default: Mantener congelado)
     """
     import io
     from datetime import datetime
@@ -243,7 +243,6 @@ def pdf_etiqueta(prod, usuario):
     except: cantidad = 1.0
     tipo         = (_g('tipo', 'reserva') or 'reserva').upper()
     fecha        = _g('fecha', datetime.now().strftime('%d/%m/%Y'))
-    # reformat YYYY-MM-DD → DD/MM/YYYY if needed
     if fecha and '-' in fecha and len(fecha) == 10:
         p1, p2, p3 = fecha.split('-')
         fecha = f'{p3}/{p2}/{p1}'
@@ -255,83 +254,89 @@ def pdf_etiqueta(prod, usuario):
     local_dest   = _g('local', '')
 
     if tipo == 'RESERVA':
-        neto = f'{int(cantidad)} tarro{"s" if cantidad != 1 else ""} ({round(cantidad*4,1)} L)'
+        neto = f'1 tarro (4 L)'
+    elif tipo == 'INSUMO':
+        neto = f'{cantidad} u/kg'
     else:
         neto = f'{cantidad} kg'
+
+    # copias: cuántas etiquetas imprimir (default = cantidad, mínimo 1)
+    if copias is None:
+        copias = max(1, int(cantidad))
+    else:
+        try: copias = max(1, int(copias))
+        except: copias = 1
 
     class EtiquetaPDF(FPDF):
         pass
 
     p = EtiquetaPDF(orientation='L', unit='mm', format=(60, W))
     p.set_margins(0, 0, 0)
-    p.add_page()
     p.set_auto_page_break(False)
 
-    # ── Barra superior oscura ─────────────────────────────────
-    p.set_fill_color(45, 16, 0)
-    p.rect(0, 0, W, 11, 'F')
-    p.set_text_color(245, 230, 204)
-    p.set_font('Helvetica', 'B', 11)
-    p.set_xy(2, 1.5)
-    p.cell(16, 8, 'oggi', align='L')
-    # tipo badge
-    p.set_font('Helvetica', 'B', 7)
-    tipo_color = (253, 126, 20) if tipo == 'RESERVA' else (25, 135, 84)
-    p.set_fill_color(*tipo_color)
-    p.set_draw_color(*tipo_color)
-    p.rect(20, 3, 22, 5.5, 'F')
-    p.set_text_color(255, 255, 255)
-    p.set_xy(20, 3)
-    p.cell(22, 5.5, tipo, align='C')
-    # neto derecha
-    p.set_fill_color(45, 16, 0)
-    p.set_text_color(245, 230, 204)
-    p.set_font('Helvetica', '', 6.5)
-    p.set_xy(44, 2)
-    p.cell(34, 7, neto, align='R')
-    p.set_text_color(0, 0, 0)
-
-    # ── Nombre del producto ───────────────────────────────────
-    p.set_font('Helvetica', 'B', 16)
-    p.set_xy(1, 12)
-    # truncar si es muy largo
-    if len(nombre) > 20:
-        p.set_font('Helvetica', 'B', 12)
-    p.cell(W - 2, 11, nombre, align='C')
-
-    # ── Línea separadora ──────────────────────────────────────
-    p.set_draw_color(200, 180, 160)
-    p.line(3, 23.5, W - 3, 23.5)
-
-    # ── Fila: fecha elab + local ──────────────────────────────
-    p.set_font('Helvetica', '', 6.5)
-    p.set_text_color(60, 60, 60)
-    p.set_xy(2, 24.5)
-    p.cell(38, 5, f'Elab: {fecha}  {hora}', align='L')
-    if local_dest:
-        p.set_xy(40, 24.5)
-        p.cell(38, 5, f'Para: {local_dest}', align='R')
-    p.set_text_color(0, 0, 0)
-
-    # ── Vencimiento ───────────────────────────────────────────
-    if vence:
-        p.set_fill_color(200, 30, 30)
-        p.rect(0, 30, W, 16, 'F')
-        p.set_font('Helvetica', 'B', 16)
-        p.set_text_color(255, 255, 255)
-        p.set_xy(0, 33)
-        p.cell(W, 10, f'VENCE: {vence}', align='C')
+    def _draw_label():
+        p.set_draw_color(0, 0, 0)
         p.set_text_color(0, 0, 0)
 
-    # ── Pie de página ─────────────────────────────────────────
-    p.set_fill_color(123, 58, 16)
-    p.rect(0, 53, W, 7, 'F')
-    p.set_font('Helvetica', '', 6)
-    p.set_text_color(245, 230, 204)
-    p.set_xy(2, 54.5)
-    p.cell(38, 4, f'Resp: {usuario}', align='L')
-    p.set_xy(40, 54.5)
-    p.cell(38, 4, 'OGGI officina gelato gusto italiano', align='R')
+        # ── Borde exterior ────────────────────────────────────────
+        p.rect(1, 1, W - 2, 58)
+
+        # ── Header: oggi | TIPO | neto ────────────────────────────
+        p.set_fill_color(0, 0, 0)
+        p.rect(1, 1, W - 2, 10, 'F')
+        p.set_text_color(255, 255, 255)
+        p.set_font('Helvetica', 'B', 11)
+        p.set_xy(3, 2)
+        p.cell(16, 8, 'OGGI', align='L')
+        p.set_font('Helvetica', 'B', 7)
+        p.set_draw_color(255, 255, 255)
+        p.rect(21, 3, 20, 5.5)
+        p.set_xy(21, 3)
+        p.cell(20, 5.5, tipo, align='C')
+        p.set_draw_color(0, 0, 0)
+        p.set_font('Helvetica', '', 6.5)
+        p.set_xy(44, 2.5)
+        p.cell(34, 7, neto, align='R')
+        p.set_text_color(0, 0, 0)
+
+        # ── Nombre del producto ───────────────────────────────────
+        p.set_font('Helvetica', 'B', 18 if len(nombre) <= 16 else 13)
+        p.set_xy(2, 12)
+        p.cell(W - 4, 11, nombre, align='C')
+
+        # ── Línea divisoria ───────────────────────────────────────
+        p.line(1, 24, W - 1, 24)
+
+        # ── Fecha elab + local ────────────────────────────────────
+        p.set_font('Helvetica', '', 7)
+        p.set_xy(3, 25)
+        p.cell(38, 5, f'Elab: {fecha}  {hora}', align='L')
+        if local_dest:
+            p.set_xy(41, 25)
+            p.cell(37, 5, f'Para: {local_dest}', align='R')
+
+        # ── Vencimiento ───────────────────────────────────────────
+        p.line(1, 31, W - 1, 31)
+        if vence:
+            p.set_fill_color(0, 0, 0)
+            p.rect(1, 31, W - 2, 16, 'F')
+            p.set_font('Helvetica', 'B', 16)
+            p.set_text_color(255, 255, 255)
+            p.set_xy(1, 33)
+            p.cell(W - 2, 12, f'VENCE: {vence}', align='C')
+            p.set_text_color(0, 0, 0)
+
+        # ── Pie ───────────────────────────────────────────────────
+        p.line(1, 53, W - 1, 53)
+        p.set_font('Helvetica', '', 6)
+        p.set_xy(3, 54)
+        p.cell(36, 4, f'Resp: {usuario}', align='L')
+        p.set_xy(39, 54)
+        p.cell(39, 4, 'OGGI officina gelato gusto italiano', align='R')
+
+    for _ in range(copias):
+        p.add_page()
+        _draw_label()
 
     buf = io.BytesIO()
     p.output(buf)

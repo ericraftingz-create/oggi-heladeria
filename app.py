@@ -993,7 +993,8 @@ def produccion_etiqueta(id):
         'local': '',
     }
     from flask import Response
-    pdf_bytes = pdf_etiqueta(prod, usuario)
+    copias = max(1, int(prod['cantidad']))
+    pdf_bytes = pdf_etiqueta(prod, usuario, copias=copias)
     return Response(pdf_bytes, mimetype='application/pdf',
                     headers={'Content-Disposition': f'inline; filename=etiqueta_{id}.pdf'})
 
@@ -1009,28 +1010,41 @@ def etiqueta_custom():
     db = get_db()
     sabores    = db.execute("SELECT id, nombre FROM sabores ORDER BY nombre").fetchall()
     bases      = db.execute("SELECT id, nombre FROM bases ORDER BY nombre").fetchall()
+    insumos    = db.execute("SELECT id, nombre FROM insumos ORDER BY nombre").fetchall()
     heladerias = db.execute("SELECT id, nombre FROM heladerias WHERE activo=1 ORDER BY nombre").fetchall()
     db.close()
     if request.method == 'POST':
         usuario = session.get('nombre') or session.get('username', '')
         prod = {
-            'nombre':           request.form.get('nombre', '').strip(),
-            'cantidad':         float(request.form.get('cantidad') or 1),
-            'tipo':             request.form.get('tipo', 'reserva'),
-            'fecha':            request.form.get('fecha') or date.today().isoformat(),
-            'hora':             request.form.get('hora') or dt.now().strftime('%H:%M'),
+            'nombre':            request.form.get('nombre', '').strip(),
+            'cantidad':          float(request.form.get('cantidad') or 1),
+            'tipo':              request.form.get('tipo', 'reserva'),
+            'fecha':             request.form.get('fecha') or date.today().isoformat(),
+            'hora':              request.form.get('hora') or dt.now().strftime('%H:%M'),
             'fecha_vencimiento': request.form.get('fecha_vencimiento') or '',
-            'local':            request.form.get('local', ''),
+            'local':             request.form.get('local', ''),
         }
-        pdf_bytes = pdf_etiqueta(prod, usuario)
+        copias_raw = request.form.get('copias', '')
+        try:
+            copias = max(1, int(copias_raw))
+        except:
+            copias = max(1, int(prod['cantidad'])) if prod['tipo'] == 'reserva' else 1
+        pdf_bytes = pdf_etiqueta(prod, usuario, copias=copias)
         from flask import Response
         return Response(pdf_bytes, mimetype='application/pdf',
                         headers={'Content-Disposition': 'inline; filename=etiqueta_custom.pdf'})
     ahora = dt.now()
+    # Pre-fill desde GET (ej: desde bases.html)
+    prefill = {
+        'nombre':   request.args.get('nombre', ''),
+        'tipo':     request.args.get('tipo', 'reserva'),
+        'cantidad': request.args.get('cantidad', '1'),
+    }
     return render_template('etiqueta_custom.html', sabores=sabores, bases=bases,
-                           heladerias=heladerias,
+                           insumos=insumos, heladerias=heladerias,
                            hoy=date.today().isoformat(),
-                           hora_ahora=ahora.strftime('%H:%M'))
+                           hora_ahora=ahora.strftime('%H:%M'),
+                           prefill=prefill)
 
 # ─────────────────────────────────────────────
 # MOVIMIENTOS DE STOCK

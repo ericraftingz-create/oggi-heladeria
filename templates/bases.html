@@ -49,6 +49,17 @@
               🛒{{ ' Pedible' if b.pedible else '' }}
             </button>
           </form>
+          <form method="get" action="{{ url_for('etiqueta_custom') }}" class="mb-0d-flex align-items-center gap-1">
+            <input type="hidden" name="nombre" value="{{ b.nombre }}">
+            <input type="hidden" name="tipo" value="base">
+            <div class="input-group input-group-sm" style="width:110px">
+              <input type="number" name="cantidad" class="form-control form-control-sm"
+                     value="1" min="1" step="1" style="width:45px" title="N° etiquetas">
+              <button type="submit" class="btn btn-sm btn-outline-dark" title="Imprimir etiqueta">
+                <i class="bi bi-tag"></i>
+              </button>
+            </div>
+          </form>
           {% if cu.is_superadmin %}
           <a href="{{ url_for('base_editar', id=b.id) }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-pencil"></i>

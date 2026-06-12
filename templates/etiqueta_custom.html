@@ -17,7 +17,8 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Nombre del producto *</label>
             <input type="text" name="nombre" id="nombreInput" class="form-control" required
-                   placeholder="Ej: Mascarpone, Latte Base…">
+                   placeholder="Ej: Mascarpone, Latte Base…"
+                   value="{{ prefill.nombre }}">
             <div class="mt-2">
               <small class="text-muted me-1">Sabores:</small>
               {% for s in sabores %}
@@ -34,26 +35,41 @@
               {% endfor %}
             </div>
             {% endif %}
+            {% if insumos %}
+            <div class="mt-1">
+              <small class="text-muted me-1">Insumos:</small>
+              {% for i in insumos %}
+              <button type="button" class="btn btn-xs btn-outline-warning preset me-1 mb-1"
+                      data-nombre="{{ i.nombre }}" data-tipo="insumo">{{ i.nombre }}</button>
+              {% endfor %}
+            </div>
+            {% endif %}
           </div>
 
-          <!-- Tipo + Cantidad -->
+          <!-- Tipo + Cantidad + Copias + Local -->
           <div class="row g-2 mb-3">
-            <div class="col-4">
+            <div class="col-3">
               <label class="form-label fw-semibold">Tipo</label>
               <select name="tipo" id="tipoSel" class="form-select">
-                <option value="reserva">🍦 Reserva</option>
-                <option value="base">🧪 Base</option>
+                <option value="reserva" {% if prefill.tipo == 'reserva' %}selected{% endif %}>🍦 Reserva</option>
+                <option value="base"    {% if prefill.tipo == 'base'    %}selected{% endif %}>🧪 Base</option>
+                <option value="insumo"  {% if prefill.tipo == 'insumo'  %}selected{% endif %}>📦 Insumo</option>
               </select>
             </div>
-            <div class="col-4">
-              <label class="form-label fw-semibold" id="cantLabel">Cantidad (tarros)</label>
+            <div class="col-3">
+              <label class="form-label fw-semibold" id="cantLabel">Cantidad</label>
               <input type="number" name="cantidad" id="cantInput" class="form-control"
-                     min="0.1" step="any" value="1">
+                     min="0.1" step="any" value="{{ prefill.cantidad }}">
             </div>
-            <div class="col-4">
+            <div class="col-3">
+              <label class="form-label fw-semibold">Nº etiquetas</label>
+              <input type="number" name="copias" id="copiasInput" class="form-control"
+                     min="1" step="1" value="{{ prefill.cantidad|int if prefill.cantidad else 1 }}">
+            </div>
+            <div class="col-3">
               <label class="form-label fw-semibold">Para local</label>
               <select name="local" class="form-select">
-                <option value="">— Lab / Sin destino —</option>
+                <option value="">— Lab —</option>
                 {% for h in heladerias %}
                 <option value="{{ h.nombre }}">{{ h.nombre }}</option>
                 {% endfor %}
@@ -85,41 +101,39 @@
     </div>
   </div>
 
-  <!-- Preview visual de la etiqueta -->
+  <!-- Preview visual -->
   <div class="col-md-6">
     <div class="card">
       <div class="card-header fw-semibold">Preview (referencia)</div>
       <div class="card-body d-flex justify-content-center">
         <div id="preview" style="
-          width:240px; height:180px; border-radius:6px; overflow:hidden;
-          box-shadow:0 2px 8px rgba(0,0,0,.15); font-family:sans-serif;
-          display:flex; flex-direction:column;">
+          width:240px; height:180px; border:2px solid #000; overflow:hidden;
+          font-family:sans-serif; display:flex; flex-direction:column; background:#fff;">
           <!-- Header -->
-          <div style="background:#2D1000; color:#F5E6CC; padding:4px 8px;
+          <div style="background:#000; color:#fff; padding:4px 8px;
                       display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:13px; font-weight:700; font-style:italic">oggi</span>
-            <span id="pvTipo" style="background:#fd7e14; color:#fff; font-size:9px;
-                  padding:1px 6px; border-radius:3px; font-weight:700">RESERVA</span>
-            <span id="pvNeto" style="font-size:9px; opacity:.8">1 tarro (4 L)</span>
+            <span style="font-size:13px; font-weight:700">OGGI</span>
+            <span id="pvTipo" style="border:1px solid #fff; color:#fff; font-size:9px;
+                  padding:1px 5px; font-weight:700">RESERVA</span>
+            <span id="pvNeto" style="font-size:9px; opacity:.85">1 tarro (4 L)</span>
           </div>
           <!-- Nombre -->
           <div style="flex:1; display:flex; align-items:center; justify-content:center;
-                      background:#fff; padding:4px 8px;">
-            <span id="pvNombre" style="font-size:16px; font-weight:700; color:#2D1000;
+                      padding:4px 8px;">
+            <span id="pvNombre" style="font-size:16px; font-weight:700;
                   text-align:center; word-break:break-word">Producto</span>
           </div>
           <!-- Info -->
-          <div style="background:#faf6f0; padding:3px 8px; display:flex; justify-content:space-between;">
+          <div style="border-top:1px solid #000; padding:3px 8px; display:flex; justify-content:space-between;">
             <span id="pvFecha" style="font-size:8px; color:#555">Elab: hoy</span>
             <span id="pvLocal" style="font-size:8px; color:#555"></span>
           </div>
           <!-- Vence -->
-          <div id="pvVenceBar" style="background:#C81E1E; padding:4px; text-align:center; display:none;">
+          <div id="pvVenceBar" style="background:#000; padding:4px; text-align:center; display:none; border-top:1px solid #000">
             <span id="pvVence" style="color:#fff; font-size:12px; font-weight:700">VENCE: —</span>
           </div>
           <!-- Footer -->
-          <div style="background:#7B3A10; color:#F5E6CC; padding:3px 8px;
-                      display:flex; justify-content:space-between;">
+          <div style="border-top:1px solid #000; padding:3px 8px; display:flex; justify-content:space-between;">
             <span style="font-size:7px">Resp: —</span>
             <span style="font-size:7px">OGGI officina gelato</span>
           </div>
@@ -134,42 +148,52 @@
 {% endblock %}
 {% block scripts %}
 <script>
-// Atajos de sabores/bases
+// Atajos de sabores/bases/insumos
 document.querySelectorAll('.preset').forEach(btn => {
   btn.addEventListener('click', () => {
     document.getElementById('nombreInput').value = btn.dataset.nombre;
     document.getElementById('tipoSel').value = btn.dataset.tipo;
-    updatePreview();
     updateCantLabel();
+    updatePreview();
   });
 });
 
-// Actualizar label cantidad según tipo
-document.getElementById('tipoSel').addEventListener('change', updateCantLabel);
+// Sync copias con cantidad cuando tipo=reserva
+document.getElementById('cantInput').addEventListener('input', function() {
+  const tipo = document.getElementById('tipoSel').value;
+  if (tipo === 'reserva') {
+    const v = Math.max(1, parseInt(this.value) || 1);
+    document.getElementById('copiasInput').value = v;
+  }
+  updatePreview();
+});
+
+document.getElementById('tipoSel').addEventListener('change', function() {
+  updateCantLabel();
+  updatePreview();
+});
+
 function updateCantLabel() {
   const tipo = document.getElementById('tipoSel').value;
-  document.getElementById('cantLabel').textContent =
-    tipo === 'reserva' ? 'Cantidad (tarros)' : 'Cantidad (kg)';
+  const labels = { reserva: 'Cantidad (tarros)', base: 'Cantidad (kg)', insumo: 'Cantidad (kg/u)' };
+  document.getElementById('cantLabel').textContent = labels[tipo] || 'Cantidad';
 }
 
-// Preview en vivo
 function updatePreview() {
-  const nombre  = document.getElementById('nombreInput').value || 'Producto';
-  const tipo    = document.getElementById('tipoSel').value.toUpperCase();
-  const cant    = parseFloat(document.getElementById('cantInput').value) || 1;
-  const fecha   = document.querySelector('[name=fecha]').value;
-  const hora    = document.querySelector('[name=hora]').value;
-  const vence   = document.getElementById('fechaVenc').value;
-  const localEl = document.querySelector('[name=local]');
-  const local   = localEl ? localEl.value : '';
+  const nombre = document.getElementById('nombreInput').value || 'Producto';
+  const tipo   = document.getElementById('tipoSel').value.toUpperCase();
+  const cant   = parseFloat(document.getElementById('cantInput').value) || 1;
+  const fecha  = document.querySelector('[name=fecha]').value;
+  const hora   = document.querySelector('[name=hora]').value;
+  const vence  = document.getElementById('fechaVenc').value;
+  const local  = document.querySelector('[name=local]').value;
 
-  const neto = tipo === 'RESERVA'
-    ? `${cant} tarro${cant!=1?'s':''} (${(cant*4).toFixed(1)} L)`
-    : `${cant} kg`;
+  let neto;
+  if (tipo === 'RESERVA') neto = `1 tarro (4 L)`;
+  else neto = `${cant} kg`;
 
   document.getElementById('pvNombre').textContent = nombre;
   document.getElementById('pvTipo').textContent   = tipo;
-  document.getElementById('pvTipo').style.background = tipo === 'RESERVA' ? '#fd7e14' : '#198754';
   document.getElementById('pvNeto').textContent   = neto;
   document.getElementById('pvFecha').textContent  = `Elab: ${fecha} ${hora}`;
   document.getElementById('pvLocal').textContent  = local ? `Para: ${local}` : '';
@@ -180,7 +204,6 @@ function updatePreview() {
   } else {
     document.getElementById('pvVenceBar').style.display = 'none';
   }
-
 }
 
 document.getElementById('etqForm').addEventListener('input', updatePreview);
