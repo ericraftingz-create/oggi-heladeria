@@ -400,7 +400,7 @@ def pdf_remito_termico(pedido, items):
     p.set_xy(4, y)
     p.cell(48, 5, 'PRODUCTO', border=0)
     p.cell(12, 5, 'CANT', align='C', border=0)
-    p.cell(12, 5, '✓', align='C', border=0)
+    p.cell(12, 5, 'OK', align='C', border=0)
     y += 5
     p.line(4, y, 76, y)
     y += 1
