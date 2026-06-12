@@ -240,7 +240,7 @@ def pdf_etiqueta(prod, usuario):
            align='C')
 
     # Vencimiento en rojo
-    if prod.get('fecha_vencimiento'):
+    if prod['fecha_vencimiento']:
         p.set_font('Helvetica', 'B', 14)
         p.set_text_color(180, 0, 0)
         p.set_xy(0, 25)

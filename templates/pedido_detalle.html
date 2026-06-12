@@ -4,7 +4,12 @@
 <div class="page-header d-flex align-items-center gap-3">
   <a href="{{ url_for('pedidos') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <h1 class="mb-0">Pedido #{{ pedido.id }}</h1>
-  <span class="badge bg-{% if pedido.estado == 'pendiente' %}warning text-dark{% elif pedido.estado == 'en_produccion' %}primary{% else %}success{% endif %} ms-2">
+  <span class="badge ms-2
+    {% if pedido.estado == 'pendiente' %}bg-warning text-dark
+    {% elif pedido.estado == 'en_produccion' %}bg-primary
+    {% elif pedido.estado == 'esperando_despacho' %}bg-info text-dark
+    {% elif pedido.estado == 'en_camino' %}bg-secondary
+    {% else %}bg-success{% endif %}">
     {{ pedido.estado|replace('_',' ') }}
   </span>
 </div>
@@ -31,15 +36,16 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header">Artículos del pedido</div>
+    <div class="card mb-3">
+      <div class="card-header">Sabores pedidos</div>
       <div class="card-body p-0">
+        {% if items %}
         <table class="table mb-0">
           <thead>
             <tr>
               <th>Sabor</th>
-              <th class="text-center">Pedido</th>
-              <th class="text-center">Stock disponible</th>
+              <th class="text-center">Tarros</th>
+              <th class="text-center">Stock</th>
               <th>Tipo</th>
             </tr>
           </thead>
@@ -62,8 +68,33 @@
           {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <p class="text-muted p-3 mb-0">Sin sabores en este pedido.</p>
+        {% endif %}
       </div>
     </div>
+
+    {% if items_base %}
+    <div class="card">
+      <div class="card-header">Bases pedidas</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead>
+            <tr><th>Base</th><th class="text-center">Cantidad</th><th>Stock (kg)</th></tr>
+          </thead>
+          <tbody>
+          {% for item in items_base %}
+          <tr>
+            <td>{{ item.base_nombre }}</td>
+            <td class="text-center fw-bold">{{ item.cantidad }} {{ item.unidad }}</td>
+            <td class="text-muted small">{{ '%.1f'|format(item.stock_kg) }} kg</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   {% if pedido.estado != 'entregado' %}
@@ -71,18 +102,31 @@
     <div class="card">
       <div class="card-header">Cambiar estado</div>
       <div class="card-body d-flex flex-column gap-2">
-        {% if pedido.estado == 'pendiente' %}
+        {% set s = pedido.estado %}
+        {% if s == 'pendiente' %}
         <form method="post" action="{{ url_for('pedido_estado', id=pedido.id) }}">
           <input type="hidden" name="estado" value="en_produccion">
-          <button class="btn btn-primary w-100">→ Marcar En Producción</button>
+          <button class="btn btn-primary w-100">🏭 En Producción</button>
+        </form>
+        {% endif %}
+        {% if s in ('pendiente','en_produccion') %}
+        <form method="post" action="{{ url_for('pedido_estado', id=pedido.id) }}">
+          <input type="hidden" name="estado" value="esperando_despacho">
+          <button class="btn btn-info w-100">📦 Esperando Despacho</button>
+        </form>
+        {% endif %}
+        {% if s in ('pendiente','en_produccion','esperando_despacho') %}
+        <form method="post" action="{{ url_for('pedido_estado', id=pedido.id) }}">
+          <input type="hidden" name="estado" value="en_camino">
+          <button class="btn btn-secondary w-100">🚚 En Camino</button>
         </form>
         {% endif %}
         <form method="post" action="{{ url_for('pedido_estado', id=pedido.id) }}"
               onsubmit="return confirm('¿Confirmar entrega? El inventario se actualizará.')">
           <input type="hidden" name="estado" value="entregado">
-          <button class="btn btn-success w-100">✓ Confirmar Entrega</button>
+          <button class="btn btn-success w-100">✅ Confirmar Entrega</button>
         </form>
-        <small class="text-muted">Al confirmar la entrega, las reservas se descontarán del inventario.</small>
+        <small class="text-muted">Al entregar, el inventario se descuenta automáticamente.</small>
       </div>
     </div>
   </div>

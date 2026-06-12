@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Chat — {{ heladeria.nombre }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center gap-3">
+  <a href="{{ url_for('pedidos') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h1 class="mb-0"><i class="bi bi-chat-dots me-2"></i>Chat — {{ heladeria.nombre }}</h1>
+    <small class="text-muted">Mensajes entre vos y la heladería</small>
+  </div>
+  <!-- Cambiar de heladería -->
+  <div class="ms-auto">
+    <select class="form-select form-select-sm" onchange="location.href='/chat/'+this.value" style="width:180px">
+      {% for h in heladerias %}
+      <option value="{{ h.id }}" {% if h.id == heladeria.id %}selected{% endif %}>{{ h.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div class="card" style="max-width:680px">
+  <div class="card-body p-0">
+    <!-- Historial -->
+    <div id="chatBox" style="padding:1.2rem; max-height:500px; overflow-y:auto; display:flex; flex-direction:column; gap:.6rem;">
+      {% if mensajes %}
+      {% for m in mensajes %}
+      <div class="d-flex {% if m.desde == 'admin' %}justify-content-end{% endif %}">
+        <div style="max-width:72%; padding:.55rem 1rem; border-radius:16px; font-size:.9rem; line-height:1.4;
+             {% if m.desde == 'admin' %}background:#7B3A10; color:#fff;{% else %}background:#F5E6CC; color:#2D1000;{% endif %}">
+          {{ m.contenido }}
+          <div style="font-size:.65rem; opacity:.55; margin-top:.25rem; text-align:{% if m.desde == 'admin' %}right{% else %}left{% endif %}">
+            {% if m.desde == 'admin' %}Tú{% else %}{{ heladeria.nombre }}{% endif %} · {{ m.created_at[5:16] }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="text-muted text-center mb-0 py-4">Sin mensajes todavía.</p>
+      {% endif %}
+    </div>
+
+    <!-- Caja de envío -->
+    <div style="border-top:1px solid #f0e0cc; padding:.85rem 1rem; background:#fff; border-radius:0 0 8px 8px;">
+      <form method="post" action="{{ url_for('mensaje_nuevo') }}" class="d-flex gap-2">
+        <input type="hidden" name="heladeria_id" value="{{ heladeria.id }}">
+        <input type="hidden" name="redirect" value="chat">
+        <input type="text" name="contenido" class="form-control" placeholder="Escribir mensaje…"
+               autofocus required style="border-color:#e0ccb8">
+        <button type="submit" class="btn btn-primary px-3">
+          <i class="bi bi-send"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const chatBox = document.getElementById('chatBox');
+  chatBox.scrollTop = chatBox.scrollHeight;
+</script>
+{% endblock %}

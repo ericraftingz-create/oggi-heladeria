@@ -990,6 +990,32 @@ def produccion_etiqueta(id):
                     headers={'Content-Disposition': f'inline; filename=etiqueta_{id}.pdf'})
 
 # ─────────────────────────────────────────────
+# ETIQUETA CUSTOM
+# ─────────────────────────────────────────────
+
+@app.route('/etiqueta/custom', methods=['GET', 'POST'])
+@admin_required
+def etiqueta_custom():
+    from pdf_gen import pdf_etiqueta
+    db = get_db()
+    sabores = db.execute("SELECT id, nombre FROM sabores ORDER BY nombre").fetchall()
+    bases   = db.execute("SELECT id, nombre FROM bases ORDER BY nombre").fetchall()
+    db.close()
+    if request.method == 'POST':
+        nombre    = request.form.get('nombre', '').strip()
+        cantidad  = float(request.form.get('cantidad') or 1)
+        fecha     = request.form.get('fecha') or date.today().isoformat()
+        vence     = request.form.get('fecha_vencimiento') or ''
+        usuario   = session.get('nombre') or session.get('username', '')
+        prod = {'sabor_nombre': nombre, 'cantidad': cantidad,
+                'fecha': fecha, 'fecha_vencimiento': vence}
+        pdf_bytes = pdf_etiqueta(prod, usuario)
+        from flask import Response
+        return Response(pdf_bytes, mimetype='application/pdf',
+                        headers={'Content-Disposition': 'inline; filename=etiqueta_custom.pdf'})
+    return render_template('etiqueta_custom.html', sabores=sabores, bases=bases, hoy=date.today().isoformat())
+
+# ─────────────────────────────────────────────
 # MOVIMIENTOS DE STOCK
 # ─────────────────────────────────────────────
 
@@ -1150,30 +1176,64 @@ def pedido_detalle(id):
         SELECT pi.*, h.nombre as heladeria_nombre
         FROM pedidos_internos pi JOIN heladerias h ON h.id=pi.heladeria_id WHERE pi.id=?
     """, (id,)).fetchone()
-    items = db.execute("""
+    items_sabor = db.execute("""
         SELECT pit.*, s.nombre as sabor_nombre, COALESCE(ir.cantidad, 0) as stock_disponible
         FROM pedido_items pit JOIN sabores s ON s.id=pit.sabor_id
         LEFT JOIN inventario_reservas ir ON ir.sabor_id=pit.sabor_id
-        WHERE pit.pedido_id=?
+        WHERE pit.pedido_id=? AND pit.sabor_id IS NOT NULL
+    """, (id,)).fetchall()
+    items_base = db.execute("""
+        SELECT pit.*, b.nombre as base_nombre, COALESCE(ib.stock_kg, 0) as stock_kg
+        FROM pedido_items pit JOIN bases b ON b.id=pit.base_id
+        LEFT JOIN inventario_bases ib ON ib.base_id=pit.base_id
+        WHERE pit.pedido_id=? AND pit.base_id IS NOT NULL
     """, (id,)).fetchall()
     db.close()
-    return render_template('pedido_detalle.html', pedido=pedido, items=items)
+    return render_template('pedido_detalle.html', pedido=pedido, items=items_sabor, items_base=items_base)
+
+@app.route('/bases/<int:id>/toggle-pedible', methods=['POST'])
+@admin_required
+def base_toggle_pedible(id):
+    db = get_db()
+    db.execute("UPDATE bases SET pedible = 1 - COALESCE(pedible,0) WHERE id=?", (id,))
+    db.commit(); db.close()
+    return redirect(url_for('bases'))
+
+_ESTADO_MSG = {
+    'en_produccion':      '🏭 Tu pedido está siendo preparado.',
+    'esperando_despacho': '📦 Tu pedido está listo para despacho.',
+    'en_camino':          '🚚 Tu pedido está en camino.',
+    'entregado':          '✅ Tu pedido fue entregado.',
+}
 
 @app.route('/pedidos/<int:id>/estado', methods=['POST'])
 @admin_required
 def pedido_estado(id):
     nuevo = request.form['estado']
     db = get_db()
+    pedido = db.execute("SELECT * FROM pedidos_internos WHERE id=?", (id,)).fetchone()
     if nuevo == 'entregado':
         items = db.execute("SELECT * FROM pedido_items WHERE pedido_id=?", (id,)).fetchall()
         for item in items:
-            db.execute("UPDATE inventario_reservas SET cantidad = MAX(0, cantidad - ?) WHERE sabor_id=?",
-                       (item['cantidad'], item['sabor_id']))
-        for item in items:
-            actualizar_disponibilidad(item['sabor_id'])
+            if item['sabor_id']:
+                db.execute("UPDATE inventario_reservas SET cantidad = MAX(0, cantidad - ?) WHERE sabor_id=?",
+                           (item['cantidad'], item['sabor_id']))
+                actualizar_disponibilidad(item['sabor_id'])
+            elif item['base_id']:
+                # 1 tarro = 4 L ≈ 4 kg; litro = 1 L ≈ 1 kg
+                cant = item['cantidad']
+                unidad = item['unidad'] or 'tarro'
+                kg = cant * 4 if unidad == 'tarro' else cant
+                db.execute("UPDATE inventario_bases SET stock_kg = MAX(0, stock_kg - ?) WHERE base_id=?",
+                           (kg, item['base_id']))
+    # auto-notify heladería
+    msg_texto = _ESTADO_MSG.get(nuevo)
+    if msg_texto and pedido:
+        db.execute("INSERT INTO mensajes (heladeria_id, contenido, desde) VALUES (?,?,?)",
+                   (pedido['heladeria_id'], f'Pedido #{id}: {msg_texto}', 'admin'))
     db.execute("UPDATE pedidos_internos SET estado=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (nuevo, id))
     db.commit(); db.close()
-    flash(f'Pedido #{id} → {nuevo.upper()}', 'success')
+    flash(f'Pedido #{id} → {nuevo.replace("_"," ").upper()}', 'success')
     return redirect(url_for('pedidos'))
 
 @app.route('/pedidos/<int:id>/eliminar', methods=['POST'])
@@ -1195,15 +1255,38 @@ def pedido_eliminar(id):
 def mensaje_nuevo():
     heladeria_id = request.form.get('heladeria_id')
     contenido = request.form.get('contenido', '').strip()
+    redirect_to = request.form.get('redirect', 'pedidos')
     if contenido and heladeria_id:
         db = get_db()
-        db.execute("INSERT INTO mensajes (heladeria_id, contenido) VALUES (?,?)",
-                   (heladeria_id, contenido))
+        db.execute("INSERT INTO mensajes (heladeria_id, contenido, desde) VALUES (?,?,?)",
+                   (heladeria_id, contenido, 'admin'))
         db.commit(); db.close()
-        flash('Mensaje enviado a la heladería.', 'success')
-    else:
-        flash('El mensaje no puede estar vacío.', 'warning')
+    if redirect_to == 'chat':
+        return redirect(url_for('chat_heladeria', hid=heladeria_id))
     return redirect(url_for('pedidos'))
+
+@app.route('/mensajes/heladeria/<int:hid>/responder', methods=['POST'])
+@login_required
+def mensaje_heladeria_responder(hid):
+    contenido = request.form.get('contenido', '').strip()
+    if contenido:
+        db = get_db()
+        db.execute("INSERT INTO mensajes (heladeria_id, contenido, desde) VALUES (?,?,?)",
+                   (hid, contenido, 'heladeria'))
+        db.commit(); db.close()
+    return redirect(url_for('heladeria_portal', hid=hid))
+
+@app.route('/chat/<int:hid>')
+@admin_required
+def chat_heladeria(hid):
+    db = get_db()
+    heladeria = db.execute("SELECT * FROM heladerias WHERE id=?", (hid,)).fetchone()
+    mensajes = db.execute(
+        "SELECT * FROM mensajes WHERE heladeria_id=? ORDER BY created_at ASC", (hid,)
+    ).fetchall()
+    heladerias = db.execute("SELECT id, nombre FROM heladerias WHERE activo=1 ORDER BY nombre").fetchall()
+    db.close()
+    return render_template('chat.html', heladeria=heladeria, mensajes=mensajes, heladerias=heladerias)
 
 @app.route('/mensajes/<int:id>/completar', methods=['POST'])
 @login_required
@@ -1248,9 +1331,9 @@ def heladeria_portal(hid):
         FROM pedidos_internos pi WHERE pi.heladeria_id=?
         ORDER BY pi.created_at DESC LIMIT 10
     """, (hid,)).fetchall()
-    mensajes = db.execute("""
-        SELECT * FROM mensajes WHERE heladeria_id=? AND completado=0 ORDER BY created_at DESC
-    """, (hid,)).fetchall()
+    mensajes = db.execute(
+        "SELECT * FROM mensajes WHERE heladeria_id=? ORDER BY created_at ASC", (hid,)
+    ).fetchall()
     db.close()
     return render_template('heladeria_portal.html',
                            heladeria=heladeria, sabores=sabores,
@@ -1268,19 +1351,28 @@ def heladeria_pedido(hid):
         responsable = session.get('nombre') or session.get('username', '')
         sabor_ids = request.form.getlist('sabor_id[]')
         cantidades = request.form.getlist('cantidad[]')
-        items_validos = [(sid, float(c)) for sid, c in zip(sabor_ids, cantidades) if c and float(c) > 0]
-        if not items_validos:
-            flash('Seleccioná al menos un sabor con cantidad mayor a 0.', 'warning')
+        sabor_ids   = request.form.getlist('sabor_id[]')
+        cantidades  = request.form.getlist('cantidad[]')
+        base_ids    = request.form.getlist('base_id[]')
+        base_cants  = request.form.getlist('base_cantidad[]')
+        base_units  = request.form.getlist('base_unidad[]')
+        items_sabor = [(sid, float(c)) for sid, c in zip(sabor_ids, cantidades) if c and float(c) > 0]
+        items_base  = [(bid, float(c), u) for bid, c, u in zip(base_ids, base_cants, base_units) if c and float(c) > 0]
+        if not items_sabor and not items_base:
+            flash('Seleccioná al menos un ítem con cantidad mayor a 0.', 'warning')
             return redirect(url_for('heladeria_pedido', hid=hid))
         cur = db.execute("INSERT INTO pedidos_internos (heladeria_id, notas, responsable) VALUES (?,?,?)",
                          (hid, notas, responsable))
         pedido_id = cur.lastrowid
-        for sid, cant in items_validos:
+        for sid, cant in items_sabor:
             inv = db.execute("SELECT cantidad FROM inventario_reservas WHERE sabor_id=?", (sid,)).fetchone()
             stock = inv['cantidad'] if inv else 0
             tipo = 'stock' if stock >= cant else 'bajo_pedido'
             db.execute("INSERT INTO pedido_items (pedido_id, sabor_id, cantidad, tipo_entrega) VALUES (?,?,?,?)",
                        (pedido_id, sid, cant, tipo))
+        for bid, cant, unidad in items_base:
+            db.execute("INSERT INTO pedido_items (pedido_id, base_id, cantidad, unidad, tipo_entrega) VALUES (?,?,?,?,'bajo_pedido')",
+                       (pedido_id, bid, cant, unidad))
         db.commit(); db.close()
         flash('Pedido enviado correctamente', 'success')
         return redirect(url_for('heladeria_portal', hid=hid))
@@ -1289,8 +1381,13 @@ def heladeria_pedido(hid):
         FROM sabores s LEFT JOIN inventario_reservas ir ON ir.sabor_id=s.id
         WHERE s.disponibilidad != 'no_disponible' ORDER BY s.nombre
     """).fetchall()
+    bases_pedibles = db.execute("""
+        SELECT b.*, COALESCE(ib.stock_kg, 0) as stock_kg
+        FROM bases b LEFT JOIN inventario_bases ib ON ib.base_id=b.id
+        WHERE b.pedible=1 ORDER BY b.nombre
+    """).fetchall()
     db.close()
-    return render_template('pedido_nuevo.html', heladeria=heladeria, sabores=sabores)
+    return render_template('pedido_nuevo.html', heladeria=heladeria, sabores=sabores, bases=bases_pedibles)
 
 # ─────────────────────────────────────────────
 # PEDIDO DE INSUMOS

@@ -43,6 +43,12 @@
           <a href="{{ url_for('base_proceso', id=b.id) }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-journal-text me-1"></i>Proceso
           </a>
+          <form method="post" action="{{ url_for('base_toggle_pedible', id=b.id) }}" class="mb-0">
+            <button class="btn btn-sm {% if b.pedible %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+                    title="{{ 'Quitar del catálogo de pedidos' if b.pedible else 'Habilitar para pedidos' }}">
+              🛒{{ ' Pedible' if b.pedible else '' }}
+            </button>
+          </form>
           {% if cu.is_superadmin %}
           <a href="{{ url_for('base_editar', id=b.id) }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-pencil"></i>

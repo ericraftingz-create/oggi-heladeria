@@ -151,11 +151,18 @@
   <a href="{{ url_for('pedido_insumos') }}" class="nav-link {% if 'pedido_insumos' in (request.endpoint or '') %}active{% endif %}">
     <i class="bi bi-file-earmark-text"></i> Pedido a proveedores
   </a>
+  {% set primera_hel = 1 %}
+  <a href="{{ url_for('chat_heladeria', hid=primera_hel) }}" class="nav-link {% if request.endpoint == 'chat_heladeria' %}active{% endif %}">
+    <i class="bi bi-chat-dots"></i> Chat heladería
+  </a>
   <a href="{{ url_for('pedido_semanal') }}" class="nav-link {% if request.endpoint == 'pedido_semanal' %}active{% endif %}">
     <i class="bi bi-calendar-week"></i> Pedido semanal
   </a>
   <a href="{{ url_for('movimientos') }}" class="nav-link {% if request.endpoint == 'movimientos' %}active{% endif %}">
     <i class="bi bi-arrow-left-right"></i> Movimientos
+  </a>
+  <a href="{{ url_for('etiqueta_custom') }}" class="nav-link {% if request.endpoint == 'etiqueta_custom' %}active{% endif %}">
+    <i class="bi bi-tag"></i> Etiqueta custom
   </a>
 
   <div class="nav-section">Historial</div>

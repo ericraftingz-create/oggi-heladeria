@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Etiqueta Custom{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-tag me-2"></i>Imprimir Etiqueta</h1>
+  <small class="text-muted">Genera una etiqueta 80×60 mm para cualquier producto</small>
+</div>
+
+<div class="card" style="max-width:520px">
+  <div class="card-body">
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Nombre en la etiqueta *</label>
+        <input type="text" name="nombre" id="nombreInput" class="form-control" required
+               placeholder="Ej: Mascarpone, Latte Base, Frambuesas…">
+        <div class="mt-2 d-flex gap-2 flex-wrap">
+          <small class="text-muted">Cargar desde:</small>
+          {% for s in sabores %}
+          <button type="button" class="btn btn-xs btn-outline-primary preset"
+                  data-nombre="{{ s.nombre }}">{{ s.nombre }}</button>
+          {% endfor %}
+          {% for b in bases %}
+          <button type="button" class="btn btn-xs btn-outline-secondary preset"
+                  data-nombre="{{ b.nombre }}">{{ b.nombre }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-4">
+          <label class="form-label fw-semibold">Cantidad</label>
+          <input type="number" name="cantidad" class="form-control" min="0.1" step="any" value="1">
+        </div>
+        <div class="col-4">
+          <label class="form-label fw-semibold">Elaboración</label>
+          <input type="date" name="fecha" class="form-control" value="{{ hoy }}">
+        </div>
+        <div class="col-4">
+          <label class="form-label fw-semibold">Vencimiento</label>
+          <input type="date" name="fecha_vencimiento" class="form-control">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-printer me-1"></i>Generar PDF e Imprimir
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('nombreInput').value = btn.dataset.nombre;
+  });
+});
+</script>
+{% endblock %}

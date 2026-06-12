@@ -75,7 +75,30 @@
     </div>
     {% endfor %}
 
-    <div class="mb-3">
+    {% if bases %}
+    <h5 class="mt-4 mb-2" style="color:var(--dark); font-weight:700">Bases</h5>
+    <p class="text-muted small mb-3">Elegí cantidad en litros o tarros (1 tarro = 4 L).</p>
+    {% for b in bases %}
+    <div class="sabor-row">
+      <div class="flex-grow-1">
+        <div class="sabor-nombre">{{ b.nombre }}</div>
+        <small class="text-muted">
+          <i class="bi bi-boxes me-1"></i>{{ '%.1f'|format(b.stock_kg) }} kg en stock
+        </small>
+      </div>
+      <input type="hidden" name="base_id[]" value="{{ b.id }}">
+      <div class="d-flex align-items-center gap-1">
+        <input type="number" name="base_cantidad[]" class="form-control qty-input" min="0" step="any" value="0">
+        <select name="base_unidad[]" class="form-select form-select-sm" style="width:80px">
+          <option value="tarro">tarro</option>
+          <option value="litro">litro</option>
+        </select>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="mb-3 mt-3">
       <label class="form-label fw-semibold" style="color:var(--dark)">Notas</label>
       <textarea name="notas" class="form-control" rows="2" style="border-color:#e0ccb8; background:var(--light)"
                 placeholder="Instrucciones especiales, urgencia, etc."></textarea>

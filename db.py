@@ -314,4 +314,36 @@ def migrate_db():
         );
     """)
     conn.commit()
+    # --- nuevas migraciones ---
+    for sql in [
+        "ALTER TABLE bases ADD COLUMN pedible INTEGER DEFAULT 0",
+        "ALTER TABLE mensajes ADD COLUMN desde TEXT DEFAULT 'admin'",
+    ]:
+        try:
+            conn.execute(sql); conn.commit()
+        except Exception:
+            pass
+    # Recrear pedido_items para permitir sabor_id NULL (soporte bases en pedidos)
+    schema_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='pedido_items'"
+    ).fetchone()
+    if schema_row and 'sabor_id INTEGER NOT NULL' in schema_row[0]:
+        conn.executescript("""
+            ALTER TABLE pedido_items RENAME TO pedido_items_old;
+            CREATE TABLE pedido_items (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                pedido_id   INTEGER NOT NULL,
+                sabor_id    INTEGER,
+                base_id     INTEGER REFERENCES bases(id),
+                cantidad    REAL NOT NULL DEFAULT 1,
+                unidad      TEXT DEFAULT 'tarro',
+                tipo_entrega TEXT DEFAULT 'stock',
+                FOREIGN KEY (pedido_id) REFERENCES pedidos_internos(id) ON DELETE CASCADE,
+                FOREIGN KEY (sabor_id)  REFERENCES sabores(id)
+            );
+            INSERT INTO pedido_items (id, pedido_id, sabor_id, cantidad, tipo_entrega)
+                SELECT id, pedido_id, sabor_id, cantidad, tipo_entrega FROM pedido_items_old;
+            DROP TABLE pedido_items_old;
+        """)
+        conn.commit()
     conn.close()

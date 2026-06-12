@@ -62,7 +62,7 @@
       </thead>
       <tbody>
       {% for p in pedidos %}
-      <tr class="{% if p.estado == 'pendiente' %}table-warning{% elif p.estado == 'en_produccion' %}table-primary{% endif %}">
+      <tr class="{% if p.estado == 'pendiente' %}table-warning{% elif p.estado == 'en_produccion' %}table-primary{% elif p.estado == 'esperando_despacho' %}table-info{% elif p.estado == 'en_camino' %}table-secondary{% endif %}">
         <td class="fw-bold">{{ p.id }}</td>
         <td>{{ p.heladeria_nombre }}</td>
         <td class="small">
@@ -71,30 +71,44 @@
         </td>
         <td class="small text-muted">{{ p.resumen or '—' }}</td>
         <td>
-          <span class="badge bg-{% if p.estado == 'pendiente' %}warning text-dark{% elif p.estado == 'en_produccion' %}primary{% else %}success{% endif %}">
+          <span class="badge
+            {% if p.estado == 'pendiente' %}bg-warning text-dark
+            {% elif p.estado == 'en_produccion' %}bg-primary
+            {% elif p.estado == 'esperando_despacho' %}bg-info text-dark
+            {% elif p.estado == 'en_camino' %}bg-secondary
+            {% else %}bg-success{% endif %}">
             {{ p.estado|replace('_',' ') }}
           </span>
         </td>
         <td class="text-muted small">{{ p.created_at[:10] }}</td>
         <td class="text-center">
-          {% if p.estado == 'pendiente' %}
+          {% set s = p.estado %}
+          {% if s == 'pendiente' %}
           <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline">
             <input type="hidden" name="estado" value="en_produccion">
-            <button class="btn btn-xs btn-outline-primary">→ En producción</button>
+            <button class="btn btn-xs btn-outline-primary">🏭 Producción</button>
           </form>
-          <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline ms-1"
-                onsubmit="return confirm('¿Marcar como entregado? Se descontará del inventario.')">
-            <input type="hidden" name="estado" value="entregado">
-            <button class="btn btn-xs btn-success">✓ Entregar</button>
+          {% endif %}
+          {% if s in ('pendiente','en_produccion') %}
+          <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline">
+            <input type="hidden" name="estado" value="esperando_despacho">
+            <button class="btn btn-xs btn-outline-info">📦 Despacho</button>
           </form>
-          {% elif p.estado == 'en_produccion' %}
+          {% endif %}
+          {% if s in ('pendiente','en_produccion','esperando_despacho') %}
+          <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline">
+            <input type="hidden" name="estado" value="en_camino">
+            <button class="btn btn-xs btn-outline-secondary">🚚 En camino</button>
+          </form>
+          {% endif %}
+          {% if s != 'entregado' %}
           <form method="post" action="{{ url_for('pedido_estado', id=p.id) }}" class="d-inline"
-                onsubmit="return confirm('¿Marcar como entregado? Se descontará del inventario.')">
+                onsubmit="return confirm('¿Marcar como entregado?')">
             <input type="hidden" name="estado" value="entregado">
-            <button class="btn btn-xs btn-success">✓ Entregar</button>
+            <button class="btn btn-xs btn-success">✅</button>
           </form>
           {% else %}
-          <span class="text-muted small">Completado</span>
+          <span class="text-muted small">✓</span>
           {% endif %}
         </td>
         <td class="d-flex gap-1">

@@ -87,24 +87,35 @@
   <div class="alert alert-info">No hay sabores disponibles en este momento.</div>
   {% endif %}
 
-  {% if mensajes %}
+  <!-- CHAT -->
   <h5 class="mt-4 mb-2" style="color:var(--dark); font-weight:700">
-    <i class="bi bi-bell-fill text-warning me-1"></i>Mensajes de OGGI
+    <i class="bi bi-chat-dots-fill text-warning me-1"></i>Chat con OGGI
   </h5>
-  {% for m in mensajes %}
-  <div class="alert alert-warning d-flex justify-content-between align-items-start mb-2" role="alert">
-    <div>
-      <div style="font-weight:600">{{ m.contenido }}</div>
-      <small class="text-muted">{{ m.created_at[:16] }}</small>
+  <div id="chatBox" style="background:#fff; border-radius:12px; padding:1rem; max-height:320px; overflow-y:auto;
+       box-shadow:0 1px 4px rgba(45,16,0,.08); margin-bottom:.75rem;">
+    {% if mensajes %}
+    {% for m in mensajes %}
+    <div class="d-flex mb-2 {% if m.desde == 'heladeria' %}justify-content-end{% endif %}">
+      <div style="max-width:75%; padding:.5rem .9rem; border-radius:14px; font-size:.9rem;
+           {% if m.desde == 'heladeria' %}background:#7B3A10; color:#fff;{% else %}background:#F5E6CC; color:#2D1000;{% endif %}">
+        {{ m.contenido }}
+        <div style="font-size:.65rem; opacity:.6; margin-top:.2rem; text-align:{% if m.desde == 'heladeria' %}right{% else %}left{% endif %}">
+          {{ m.created_at[:16] }}
+        </div>
+      </div>
     </div>
-    <form method="post" action="{{ url_for('mensaje_completar', id=m.id) }}" class="mb-0 ms-3">
-      <button class="btn btn-sm btn-outline-dark flex-shrink-0">
-        <i class="bi bi-check2 me-1"></i>Listo
-      </button>
-    </form>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted small text-center mb-0">Sin mensajes todavía.</p>
+    {% endif %}
   </div>
-  {% endfor %}
-  {% endif %}
+  <form method="post" action="{{ url_for('mensaje_heladeria_responder', hid=heladeria.id) }}" class="d-flex gap-2">
+    <input type="text" name="contenido" class="form-control" placeholder="Escribir mensaje…" required
+           style="border-color:#e0ccb8; background:var(--light)">
+    <button type="submit" class="btn btn-pedir btn-sm px-3">
+      <i class="bi bi-send"></i>
+    </button>
+  </form>
 
   {% if mis_pedidos %}
   <h5 class="mt-4 mb-3" style="color:var(--dark); font-weight:700">Mis pedidos recientes</h5>
@@ -115,7 +126,12 @@
       <small class="text-muted">{{ p.resumen or '—' }}</small>
     </div>
     <div class="text-end">
-      <span class="badge bg-{% if p.estado == 'pendiente' %}warning text-dark{% elif p.estado == 'en_produccion' %}primary{% else %}success{% endif %}">
+      <span class="badge
+        {% if p.estado == 'pendiente' %}bg-warning text-dark
+        {% elif p.estado == 'en_produccion' %}bg-primary
+        {% elif p.estado == 'esperando_despacho' %}bg-info text-dark
+        {% elif p.estado == 'en_camino' %}bg-secondary
+        {% else %}bg-success{% endif %}">
         {{ p.estado|replace('_',' ') }}
       </span>
       <br><small class="text-muted">{{ p.created_at[:10] }}</small>
@@ -127,5 +143,9 @@
 
 <footer>Desarrollado por Erick Espina · Sr. Finley &nbsp;·&nbsp; OGGI officina gelato gusto italiano</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const chatBox = document.getElementById('chatBox');
+  if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+</script>
 </body>
 </html>
