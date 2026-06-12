@@ -1267,6 +1267,43 @@ def pedido_estado(id):
     flash(f'Pedido #{id} → {nuevo.replace("_"," ").upper()}', 'success')
     return redirect(url_for('pedidos'))
 
+@app.route('/pedidos/<int:id>/confirmar', methods=['POST'])
+@login_required
+def heladeria_confirmar_pedido(id):
+    """La heladería confirma recepción (o reporta problema) cuando el pedido está en_camino."""
+    db = get_db()
+    pedido = db.execute("SELECT * FROM pedidos_internos WHERE id=?", (id,)).fetchone()
+    if not pedido:
+        db.close()
+        flash('Pedido no encontrado.', 'danger')
+        return redirect(url_for('heladeria_portal', hid=session.get('heladeria_id', 1)))
+    problema = request.form.get('problema', '').strip()
+    if problema:
+        # Notificar al admin con el detalle del problema
+        db.execute("INSERT INTO mensajes (heladeria_id, contenido, desde) VALUES (?,?,?)",
+                   (pedido['heladeria_id'],
+                    f'⚠️ Pedido #{id} — Problema al recibir: {problema}', 'heladeria'))
+        flash('Problema reportado al equipo OGGI. Gracias por avisarnos.', 'warning')
+    else:
+        flash(f'Pedido #{id} confirmado como recibido. ¡Gracias!', 'success')
+    db.execute("UPDATE pedidos_internos SET estado='entregado', updated_at=CURRENT_TIMESTAMP WHERE id=?", (id,))
+    # Descontar stock si no fue descontado aún (estado anterior = en_camino, no entregado)
+    if pedido['estado'] != 'entregado':
+        items = db.execute("SELECT * FROM pedido_items WHERE pedido_id=?", (id,)).fetchall()
+        for item in items:
+            if item['sabor_id']:
+                db.execute("UPDATE inventario_reservas SET cantidad = MAX(0, cantidad - ?) WHERE sabor_id=?",
+                           (item['cantidad'], item['sabor_id']))
+                actualizar_disponibilidad(item['sabor_id'])
+            elif item['base_id']:
+                cant = item['cantidad']
+                unidad = item['unidad'] or 'tarro'
+                kg = cant * 4 if unidad == 'tarro' else cant
+                db.execute("UPDATE inventario_bases SET stock_kg = MAX(0, stock_kg - ?) WHERE base_id=?",
+                           (kg, item['base_id']))
+    db.commit(); db.close()
+    return redirect(url_for('heladeria_portal', hid=pedido['heladeria_id']))
+
 @app.route('/pedidos/<int:id>/eliminar', methods=['POST'])
 @admin_required
 def pedido_eliminar(id):
@@ -1724,12 +1761,39 @@ def pdf_pedido(id):
         FROM pedidos_internos pi JOIN heladerias h ON h.id=pi.heladeria_id WHERE pi.id=?
     """, (id,)).fetchone()
     items = db.execute("""
-        SELECT pit.*, s.nombre as sabor_nombre
-        FROM pedido_items pit JOIN sabores s ON s.id=pit.sabor_id WHERE pit.pedido_id=?
+        SELECT pit.*,
+               COALESCE(s.nombre, b.nombre) as sabor_nombre
+        FROM pedido_items pit
+        LEFT JOIN sabores s ON s.id=pit.sabor_id
+        LEFT JOIN bases b ON b.id=pit.base_id
+        WHERE pit.pedido_id=?
     """, (id,)).fetchall()
     db.close()
     path = gen_pdf(pedido, items)
     return send_file(path, as_attachment=True, download_name=f"remito_pedido_{id}.pdf")
+
+@app.route('/pedidos/<int:id>/pdf/termico')
+@admin_required
+def pdf_pedido_termico(id):
+    from pdf_gen import pdf_remito_termico
+    from flask import Response
+    db = get_db()
+    pedido = db.execute("""
+        SELECT pi.*, h.nombre as heladeria_nombre
+        FROM pedidos_internos pi JOIN heladerias h ON h.id=pi.heladeria_id WHERE pi.id=?
+    """, (id,)).fetchone()
+    items = db.execute("""
+        SELECT pit.*,
+               COALESCE(s.nombre, b.nombre) as sabor_nombre
+        FROM pedido_items pit
+        LEFT JOIN sabores s ON s.id=pit.sabor_id
+        LEFT JOIN bases b ON b.id=pit.base_id
+        WHERE pit.pedido_id=?
+    """, (id,)).fetchall()
+    db.close()
+    pdf_bytes = pdf_remito_termico(pedido, items)
+    return Response(pdf_bytes, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'inline; filename=despacho_{id}.pdf'})
 
 @app.route('/pedido-insumos/<int:id>/pdf')
 @admin_required

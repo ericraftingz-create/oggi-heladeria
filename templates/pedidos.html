@@ -111,8 +111,14 @@
           <span class="text-muted small">✓</span>
           {% endif %}
         </td>
-        <td class="d-flex gap-1">
+        <td class="d-flex gap-1 flex-wrap">
           <a href="{{ url_for('pedido_detalle', id=p.id) }}" class="btn btn-xs btn-outline-secondary">Ver</a>
+          <a href="{{ url_for('pdf_pedido', id=p.id) }}" class="btn btn-xs btn-outline-secondary" title="Remito A4 (email)">
+            <i class="bi bi-file-earmark-pdf"></i>
+          </a>
+          <a href="{{ url_for('pdf_pedido_termico', id=p.id) }}" class="btn btn-xs btn-outline-dark" title="Despacho térmico">
+            <i class="bi bi-tag"></i>
+          </a>
           <form method="post" action="{{ url_for('pedido_eliminar', id=p.id) }}"
                 onsubmit="return confirm('¿Eliminar este pedido? No se puede deshacer.')">
             <button class="btn btn-xs btn-outline-danger">🗑</button>

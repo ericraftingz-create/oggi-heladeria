@@ -343,6 +343,102 @@ def pdf_etiqueta(prod, usuario, copias=1):
     return buf.getvalue()
 
 
+def pdf_remito_termico(pedido, items):
+    """
+    Remito mini para impresora térmica 80mm — guía de despacho.
+    Portrait, 80mm ancho, alto variable según items.
+    """
+    import io
+    W = 72  # ancho útil dentro de los márgenes
+
+    # Calcular alto necesario: cabecera ~40mm + 8mm por item + pie ~15mm
+    n = len(items) if items else 1
+    H = max(80, 45 + n * 10 + 20)
+
+    class RemitoPDF(FPDF):
+        pass
+
+    p = RemitoPDF(orientation='P', unit='mm', format=(H, 80))
+    p.set_margins(4, 4, 4)
+    p.set_auto_page_break(False)
+    p.add_page()
+    p.set_draw_color(0, 0, 0)
+    p.set_text_color(0, 0, 0)
+
+    # ── Encabezado ────────────────────────────────────────────
+    p.set_fill_color(0, 0, 0)
+    p.rect(0, 0, 80, 12, 'F')
+    p.set_font('Helvetica', 'B', 13)
+    p.set_text_color(255, 255, 255)
+    p.set_xy(4, 2)
+    p.cell(40, 8, 'OGGI', align='L')
+    p.set_font('Helvetica', '', 7)
+    p.set_xy(4, 8)
+    p.cell(72, 0, 'officina gelato gusto italiano', align='L')
+    p.set_text_color(0, 0, 0)
+
+    # ── Info pedido ───────────────────────────────────────────
+    y = 15
+    p.set_font('Helvetica', 'B', 9)
+    p.set_xy(4, y)
+    p.cell(W, 5, f'DESPACHO PEDIDO #{pedido["id"]}', align='C')
+    y += 6
+    p.set_font('Helvetica', '', 7.5)
+    p.set_xy(4, y)
+    p.cell(W, 4, f'Para: {pedido["heladeria_nombre"]}', align='L')
+    y += 5
+    p.set_xy(4, y)
+    p.cell(W, 4, f'Fecha: {datetime.now().strftime("%d/%m/%Y  %H:%M")}', align='L')
+    y += 5
+
+    # ── Línea separadora ──────────────────────────────────────
+    p.line(4, y, 76, y)
+    y += 2
+
+    # ── Items ─────────────────────────────────────────────────
+    p.set_font('Helvetica', 'B', 7.5)
+    p.set_xy(4, y)
+    p.cell(48, 5, 'PRODUCTO', border=0)
+    p.cell(12, 5, 'CANT', align='C', border=0)
+    p.cell(12, 5, '✓', align='C', border=0)
+    y += 5
+    p.line(4, y, 76, y)
+    y += 1
+
+    p.set_font('Helvetica', '', 8)
+    for item in (items or []):
+        nombre = item['sabor_nombre'] or '—'
+        cant = item['cantidad']
+        unidad = item.get('unidad') or 'tarro'
+        cant_str = f"{int(cant) if float(cant) == int(cant) else cant} {unidad}"
+        p.set_xy(4, y)
+        # truncar nombre si es largo
+        if len(nombre) > 22:
+            nombre = nombre[:21] + '…'
+        p.cell(48, 6, nombre)
+        p.cell(12, 6, cant_str, align='C')
+        # casilla de check para marcar a mano
+        p.rect(68, y + 1, 5, 4)
+        y += 6
+
+    # ── Línea separadora ──────────────────────────────────────
+    y += 1
+    p.line(4, y, 76, y)
+    y += 3
+
+    # ── Pie ───────────────────────────────────────────────────
+    p.set_font('Helvetica', '', 6.5)
+    p.set_xy(4, y)
+    p.cell(W, 4, 'Firma recepción: ___________________', align='L')
+    y += 6
+    p.set_xy(4, y)
+    p.cell(W, 4, 'OGGI officina gelato gusto italiano', align='C')
+
+    buf = io.BytesIO()
+    p.output(buf)
+    return buf.getvalue()
+
+
 def pdf_pedido_semanal(items):
     """Returns PDF bytes for a simple weekly fresh-ingredient order."""
     import io

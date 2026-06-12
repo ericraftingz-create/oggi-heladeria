@@ -120,22 +120,49 @@
   {% if mis_pedidos %}
   <h5 class="mt-4 mb-3" style="color:var(--dark); font-weight:700">Mis pedidos recientes</h5>
   {% for p in mis_pedidos %}
-  <div class="sabor-card">
-    <div>
-      <div class="sabor-nombre">Pedido #{{ p.id }}</div>
-      <small class="text-muted">{{ p.resumen or '—' }}</small>
+  <div class="sabor-card flex-column align-items-stretch">
+    <div class="d-flex justify-content-between align-items-start w-100">
+      <div>
+        <div class="sabor-nombre">Pedido #{{ p.id }}</div>
+        <small class="text-muted">{{ p.resumen or '—' }}</small>
+      </div>
+      <div class="text-end">
+        <span class="badge
+          {% if p.estado == 'pendiente' %}bg-warning text-dark
+          {% elif p.estado == 'en_produccion' %}bg-primary
+          {% elif p.estado == 'esperando_despacho' %}bg-info text-dark
+          {% elif p.estado == 'en_camino' %}bg-secondary
+          {% else %}bg-success{% endif %}">
+          {{ p.estado|replace('_',' ') }}
+        </span>
+        <br><small class="text-muted">{{ p.created_at[:10] }}</small>
+      </div>
     </div>
-    <div class="text-end">
-      <span class="badge
-        {% if p.estado == 'pendiente' %}bg-warning text-dark
-        {% elif p.estado == 'en_produccion' %}bg-primary
-        {% elif p.estado == 'esperando_despacho' %}bg-info text-dark
-        {% elif p.estado == 'en_camino' %}bg-secondary
-        {% else %}bg-success{% endif %}">
-        {{ p.estado|replace('_',' ') }}
-      </span>
-      <br><small class="text-muted">{{ p.created_at[:10] }}</small>
+
+    {% if p.estado == 'en_camino' %}
+    <div class="w-100 mt-2 pt-2" style="border-top:1px solid #f0e0cc">
+      <!-- Confirmar OK -->
+      <form method="post" action="{{ url_for('heladeria_confirmar_pedido', id=p.id) }}" class="mb-2">
+        <input type="hidden" name="problema" value="">
+        <button type="submit" class="btn btn-success btn-sm w-100"
+                onclick="return confirm('¿Confirmar que llegó todo correcto?')">
+          <i class="bi bi-check-circle me-1"></i>Confirmar recepción — todo OK
+        </button>
+      </form>
+      <!-- Reportar problema -->
+      <details>
+        <summary style="font-size:.82rem; color:#c0392b; cursor:pointer">⚠️ Faltó algo o hubo un error</summary>
+        <form method="post" action="{{ url_for('heladeria_confirmar_pedido', id=p.id) }}" class="mt-2">
+          <textarea name="problema" class="form-control form-control-sm mb-2" rows="2"
+                    placeholder="Ej: Faltaron 2 tarros de fresa, llegó derretido…" required
+                    style="border-color:#e0ccb8"></textarea>
+          <button type="submit" class="btn btn-danger btn-sm w-100">
+            <i class="bi bi-exclamation-triangle me-1"></i>Enviar reporte y confirmar recepción
+          </button>
+        </form>
+      </details>
     </div>
+    {% endif %}
   </div>
   {% endfor %}
   {% endif %}
