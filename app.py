@@ -970,22 +970,30 @@ def produccion_pdf():
 def produccion_etiqueta(id):
     from pdf_gen import pdf_etiqueta
     db = get_db()
-    prod = db.execute("""
+    row = db.execute("""
         SELECT p.*, s.nombre as sabor_nombre, s.vida_util_dias,
-               COALESCE(pe.fecha_vencimiento,'') as fecha_vencimiento,
-               u.nombre as usuario_nombre
+               COALESCE(pe.fecha_vencimiento,'') as fecha_vencimiento
         FROM produccion p
         JOIN sabores s ON s.id=p.sabor_id
         LEFT JOIN produccion_etiquetas pe ON pe.produccion_id=p.id
-        LEFT JOIN usuarios u ON u.username=?
         WHERE p.id=?
-    """, (session.get('username',''), id)).fetchone()
+    """, (id,)).fetchone()
     db.close()
-    if not prod:
+    if not row:
         flash('Producción no encontrada', 'danger')
         return redirect(url_for('produccion'))
+    usuario = session.get('nombre') or session.get('username', '')
+    prod = {
+        'nombre': row['sabor_nombre'],
+        'cantidad': row['cantidad'],
+        'tipo': 'reserva',
+        'fecha': row['fecha'],
+        'hora': row['created_at'][11:16] if row['created_at'] else '',
+        'fecha_vencimiento': row['fecha_vencimiento'],
+        'local': '',
+    }
     from flask import Response
-    pdf_bytes = pdf_etiqueta(prod, session.get('nombre') or session.get('username',''))
+    pdf_bytes = pdf_etiqueta(prod, usuario)
     return Response(pdf_bytes, mimetype='application/pdf',
                     headers={'Content-Disposition': f'inline; filename=etiqueta_{id}.pdf'})
 
@@ -997,23 +1005,32 @@ def produccion_etiqueta(id):
 @admin_required
 def etiqueta_custom():
     from pdf_gen import pdf_etiqueta
+    from datetime import datetime as dt
     db = get_db()
-    sabores = db.execute("SELECT id, nombre FROM sabores ORDER BY nombre").fetchall()
-    bases   = db.execute("SELECT id, nombre FROM bases ORDER BY nombre").fetchall()
+    sabores    = db.execute("SELECT id, nombre FROM sabores ORDER BY nombre").fetchall()
+    bases      = db.execute("SELECT id, nombre FROM bases ORDER BY nombre").fetchall()
+    heladerias = db.execute("SELECT id, nombre FROM heladerias WHERE activo=1 ORDER BY nombre").fetchall()
     db.close()
     if request.method == 'POST':
-        nombre    = request.form.get('nombre', '').strip()
-        cantidad  = float(request.form.get('cantidad') or 1)
-        fecha     = request.form.get('fecha') or date.today().isoformat()
-        vence     = request.form.get('fecha_vencimiento') or ''
-        usuario   = session.get('nombre') or session.get('username', '')
-        prod = {'sabor_nombre': nombre, 'cantidad': cantidad,
-                'fecha': fecha, 'fecha_vencimiento': vence}
+        usuario = session.get('nombre') or session.get('username', '')
+        prod = {
+            'nombre':           request.form.get('nombre', '').strip(),
+            'cantidad':         float(request.form.get('cantidad') or 1),
+            'tipo':             request.form.get('tipo', 'reserva'),
+            'fecha':            request.form.get('fecha') or date.today().isoformat(),
+            'hora':             request.form.get('hora') or dt.now().strftime('%H:%M'),
+            'fecha_vencimiento': request.form.get('fecha_vencimiento') or '',
+            'local':            request.form.get('local', ''),
+        }
         pdf_bytes = pdf_etiqueta(prod, usuario)
         from flask import Response
         return Response(pdf_bytes, mimetype='application/pdf',
                         headers={'Content-Disposition': 'inline; filename=etiqueta_custom.pdf'})
-    return render_template('etiqueta_custom.html', sabores=sabores, bases=bases, hoy=date.today().isoformat())
+    ahora = dt.now()
+    return render_template('etiqueta_custom.html', sabores=sabores, bases=bases,
+                           heladerias=heladerias,
+                           hoy=date.today().isoformat(),
+                           hora_ahora=ahora.strftime('%H:%M'))
 
 # ─────────────────────────────────────────────
 # MOVIMIENTOS DE STOCK

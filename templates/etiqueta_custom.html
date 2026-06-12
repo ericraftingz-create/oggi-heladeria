@@ -3,55 +3,188 @@
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-tag me-2"></i>Imprimir Etiqueta</h1>
-  <small class="text-muted">Genera una etiqueta 80×60 mm para cualquier producto</small>
+  <small class="text-muted">Genera etiqueta 80×60 mm — cumple requisitos Seremi</small>
 </div>
 
-<div class="card" style="max-width:520px">
-  <div class="card-body">
-    <form method="post">
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Nombre en la etiqueta *</label>
-        <input type="text" name="nombre" id="nombreInput" class="form-control" required
-               placeholder="Ej: Mascarpone, Latte Base, Frambuesas…">
-        <div class="mt-2 d-flex gap-2 flex-wrap">
-          <small class="text-muted">Cargar desde:</small>
-          {% for s in sabores %}
-          <button type="button" class="btn btn-xs btn-outline-primary preset"
-                  data-nombre="{{ s.nombre }}">{{ s.nombre }}</button>
-          {% endfor %}
-          {% for b in bases %}
-          <button type="button" class="btn btn-xs btn-outline-secondary preset"
-                  data-nombre="{{ b.nombre }}">{{ b.nombre }}</button>
-          {% endfor %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header fw-semibold">Datos del producto</div>
+      <div class="card-body">
+        <form method="post" id="etqForm">
+
+          <!-- Nombre con atajos rápidos -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre del producto *</label>
+            <input type="text" name="nombre" id="nombreInput" class="form-control" required
+                   placeholder="Ej: Mascarpone, Latte Base…">
+            <div class="mt-2">
+              <small class="text-muted me-1">Sabores:</small>
+              {% for s in sabores %}
+              <button type="button" class="btn btn-xs btn-outline-primary preset me-1 mb-1"
+                      data-nombre="{{ s.nombre }}" data-tipo="reserva">{{ s.nombre }}</button>
+              {% endfor %}
+            </div>
+            {% if bases %}
+            <div class="mt-1">
+              <small class="text-muted me-1">Bases:</small>
+              {% for b in bases %}
+              <button type="button" class="btn btn-xs btn-outline-secondary preset me-1 mb-1"
+                      data-nombre="{{ b.nombre }}" data-tipo="base">{{ b.nombre }}</button>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Tipo + Cantidad -->
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label fw-semibold">Tipo</label>
+              <select name="tipo" id="tipoSel" class="form-select">
+                <option value="reserva">🍦 Reserva</option>
+                <option value="base">🧪 Base</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label fw-semibold" id="cantLabel">Cantidad (tarros)</label>
+              <input type="number" name="cantidad" id="cantInput" class="form-control"
+                     min="0.1" step="any" value="1">
+            </div>
+            <div class="col-4">
+              <label class="form-label fw-semibold">Para local</label>
+              <select name="local" class="form-select">
+                <option value="">— Lab / Sin destino —</option>
+                {% for h in heladerias %}
+                <option value="{{ h.nombre }}">{{ h.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Fechas y hora -->
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label fw-semibold">Fecha elaboración</label>
+              <input type="date" name="fecha" class="form-control" value="{{ hoy }}">
+            </div>
+            <div class="col-4">
+              <label class="form-label fw-semibold">Hora elaboración</label>
+              <input type="time" name="hora" class="form-control" value="{{ hora_ahora }}">
+            </div>
+            <div class="col-4">
+              <label class="form-label fw-semibold">Fecha vencimiento</label>
+              <input type="date" name="fecha_vencimiento" id="fechaVenc" class="form-control">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-printer me-1"></i>Generar PDF e imprimir
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview visual de la etiqueta -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header fw-semibold">Preview (referencia)</div>
+      <div class="card-body d-flex justify-content-center">
+        <div id="preview" style="
+          width:240px; height:180px; border-radius:6px; overflow:hidden;
+          box-shadow:0 2px 8px rgba(0,0,0,.15); font-family:sans-serif;
+          display:flex; flex-direction:column;">
+          <!-- Header -->
+          <div style="background:#2D1000; color:#F5E6CC; padding:4px 8px;
+                      display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:13px; font-weight:700; font-style:italic">oggi</span>
+            <span id="pvTipo" style="background:#fd7e14; color:#fff; font-size:9px;
+                  padding:1px 6px; border-radius:3px; font-weight:700">RESERVA</span>
+            <span id="pvNeto" style="font-size:9px; opacity:.8">1 tarro (4 L)</span>
+          </div>
+          <!-- Nombre -->
+          <div style="flex:1; display:flex; align-items:center; justify-content:center;
+                      background:#fff; padding:4px 8px;">
+            <span id="pvNombre" style="font-size:16px; font-weight:700; color:#2D1000;
+                  text-align:center; word-break:break-word">Producto</span>
+          </div>
+          <!-- Info -->
+          <div style="background:#faf6f0; padding:3px 8px; display:flex; justify-content:space-between;">
+            <span id="pvFecha" style="font-size:8px; color:#555">Elab: hoy</span>
+            <span id="pvLocal" style="font-size:8px; color:#555"></span>
+          </div>
+          <!-- Vence -->
+          <div id="pvVenceBar" style="background:#C81E1E; padding:4px; text-align:center; display:none;">
+            <span id="pvVence" style="color:#fff; font-size:12px; font-weight:700">VENCE: —</span>
+          </div>
+          <!-- Footer -->
+          <div style="background:#7B3A10; color:#F5E6CC; padding:3px 8px;
+                      display:flex; justify-content:space-between;">
+            <span style="font-size:7px">Resp: —</span>
+            <span style="font-size:7px">OGGI officina gelato</span>
+          </div>
         </div>
       </div>
-      <div class="row g-2 mb-3">
-        <div class="col-4">
-          <label class="form-label fw-semibold">Cantidad</label>
-          <input type="number" name="cantidad" class="form-control" min="0.1" step="any" value="1">
-        </div>
-        <div class="col-4">
-          <label class="form-label fw-semibold">Elaboración</label>
-          <input type="date" name="fecha" class="form-control" value="{{ hoy }}">
-        </div>
-        <div class="col-4">
-          <label class="form-label fw-semibold">Vencimiento</label>
-          <input type="date" name="fecha_vencimiento" class="form-control">
-        </div>
+      <div class="card-footer text-muted small text-center">
+        El PDF final respeta las proporciones exactas 80×60 mm
       </div>
-      <button type="submit" class="btn btn-primary w-100">
-        <i class="bi bi-printer me-1"></i>Generar PDF e Imprimir
-      </button>
-    </form>
+    </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+// Atajos de sabores/bases
 document.querySelectorAll('.preset').forEach(btn => {
   btn.addEventListener('click', () => {
     document.getElementById('nombreInput').value = btn.dataset.nombre;
+    document.getElementById('tipoSel').value = btn.dataset.tipo;
+    updatePreview();
+    updateCantLabel();
   });
 });
+
+// Actualizar label cantidad según tipo
+document.getElementById('tipoSel').addEventListener('change', updateCantLabel);
+function updateCantLabel() {
+  const tipo = document.getElementById('tipoSel').value;
+  document.getElementById('cantLabel').textContent =
+    tipo === 'reserva' ? 'Cantidad (tarros)' : 'Cantidad (kg)';
+}
+
+// Preview en vivo
+function updatePreview() {
+  const nombre  = document.getElementById('nombreInput').value || 'Producto';
+  const tipo    = document.getElementById('tipoSel').value.toUpperCase();
+  const cant    = parseFloat(document.getElementById('cantInput').value) || 1;
+  const fecha   = document.querySelector('[name=fecha]').value;
+  const hora    = document.querySelector('[name=hora]').value;
+  const vence   = document.getElementById('fechaVenc').value;
+  const localEl = document.querySelector('[name=local]');
+  const local   = localEl ? localEl.value : '';
+
+  const neto = tipo === 'RESERVA'
+    ? `${cant} tarro${cant!=1?'s':''} (${(cant*4).toFixed(1)} L)`
+    : `${cant} kg`;
+
+  document.getElementById('pvNombre').textContent = nombre;
+  document.getElementById('pvTipo').textContent   = tipo;
+  document.getElementById('pvTipo').style.background = tipo === 'RESERVA' ? '#fd7e14' : '#198754';
+  document.getElementById('pvNeto').textContent   = neto;
+  document.getElementById('pvFecha').textContent  = `Elab: ${fecha} ${hora}`;
+  document.getElementById('pvLocal').textContent  = local ? `Para: ${local}` : '';
+
+  if (vence) {
+    document.getElementById('pvVenceBar').style.display = 'block';
+    document.getElementById('pvVence').textContent = `VENCE: ${vence}`;
+  } else {
+    document.getElementById('pvVenceBar').style.display = 'none';
+  }
+
+}
+
+document.getElementById('etqForm').addEventListener('input', updatePreview);
+updatePreview();
+updateCantLabel();
 </script>
 {% endblock %}
