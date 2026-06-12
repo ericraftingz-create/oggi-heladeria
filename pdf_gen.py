@@ -358,7 +358,7 @@ def pdf_remito_termico(pedido, items):
     class RemitoPDF(FPDF):
         pass
 
-    p = RemitoPDF(orientation='P', unit='mm', format=(H, 80))
+    p = RemitoPDF(orientation='P', unit='mm', format=(80, H))
     p.set_margins(4, 4, 4)
     p.set_auto_page_break(False)
     p.add_page()
@@ -409,7 +409,8 @@ def pdf_remito_termico(pedido, items):
     for item in (items or []):
         nombre = item['sabor_nombre'] or '—'
         cant = item['cantidad']
-        unidad = item.get('unidad') or 'tarro'
+        try: unidad = item['unidad'] or 'tarro'
+        except: unidad = 'tarro'
         cant_str = f"{int(cant) if float(cant) == int(cant) else cant} {unidad}"
         p.set_xy(4, y)
         # truncar nombre si es largo
