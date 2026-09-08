@@ -401,11 +401,15 @@ def sabor_eliminar(id):
     db = get_db()
     # Eliminar registros dependientes sin CASCADE
     db.execute("DELETE FROM inventario_reservas WHERE sabor_id=?", (id,))
-    db.execute("""DELETE FROM produccion_etiquetas WHERE produccion_id IN
-                  (SELECT id FROM produccion WHERE sabor_id=?)""", (id,))
+    db.execute("DELETE FROM receta_insumos WHERE sabor_id=?", (id,))
+    db.execute("DELETE FROM receta_bases WHERE sabor_id=?", (id,))
+    db.execute("DELETE FROM proceso_pasos WHERE sabor_id=?", (id,))
+    try:
+        db.execute("""DELETE FROM produccion_etiquetas WHERE produccion_id IN
+                      (SELECT id FROM produccion WHERE sabor_id=?)""", (id,))
+    except Exception: pass
     db.execute("DELETE FROM produccion WHERE sabor_id=?", (id,))
     db.execute("DELETE FROM pedido_items WHERE sabor_id=?", (id,))
-    db.execute("DELETE FROM receta_bases WHERE sabor_id=?", (id,))
     db.execute("DELETE FROM sabores WHERE id=?", (id,))
     db.commit(); db.close()
     flash('Sabor eliminado', 'warning')
