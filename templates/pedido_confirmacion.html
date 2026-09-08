@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pedido confirmado — OGGI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brown:#7B3A10; --dark:#2D1000; --beige:#F5E6CC; --light:#F9F0E1; }
+    body { background:var(--light); font-family:'Segoe UI',sans-serif; }
+    .topbar { background:var(--dark); color:#fff; padding:.75rem 1.25rem;
+              display:flex; align-items:center; justify-content:space-between; }
+    .topbar .brand { font-family:'Dancing Script',cursive; font-size:1.6rem; color:var(--beige); }
+    .container-main { max-width:560px; margin:0 auto; padding:2rem 1rem; }
+    .success-icon { font-size:4rem; color:#198754; }
+    .btn-primary-oggi { background:var(--brown); border:none; color:#fff; font-weight:700;
+                        border-radius:10px; padding:.75rem 1.5rem; }
+    .btn-primary-oggi:hover { background:var(--dark); color:#fff; }
+    .item-row { background:#fff; border-radius:10px; padding:.75rem 1rem; margin-bottom:.4rem;
+                display:flex; justify-content:space-between; box-shadow:0 1px 3px rgba(45,16,0,.07); }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">oggi</div>
+  <a href="{{ url_for('heladeria_portal', hid=hid) }}" class="btn btn-outline-light btn-sm">← Portal</a>
+</div>
+
+<div class="container-main text-center">
+  <div class="success-icon mb-3"><i class="bi bi-check-circle-fill"></i></div>
+  <h3 class="fw-bold mb-1" style="color:var(--dark)">¡Pedido enviado!</h3>
+  <p class="text-muted mb-4">Pedido <strong>#{{ pedido.id }}</strong> para <strong>{{ pedido.heladeria_nombre }}</strong> recibido. Te avisaremos cuando esté en camino.</p>
+
+  <!-- Resumen del pedido -->
+  <div class="text-start mb-4">
+    <h6 class="fw-bold mb-2" style="color:var(--dark)">Resumen</h6>
+    {% for item in items %}
+    <div class="item-row">
+      <span class="fw-semibold" style="color:var(--dark)">{{ item.nombre_item }}</span>
+      <span class="text-muted">{{ item.cantidad }} {{ item.unidad or 'tarro' }}{{ 's' if item.cantidad != 1 else '' }}</span>
+    </div>
+    {% endfor %}
+    {% if pedido.notas %}
+    <div class="mt-2 p-2 rounded" style="background:#fff; font-size:.85rem; color:#8B6347">
+      <i class="bi bi-chat-text me-1"></i>{{ pedido.notas }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Descargar PDF -->
+  <a href="{{ url_for('pedido_pdf_cliente', hid=hid, id=pedido.id) }}"
+     class="btn btn-primary-oggi w-100 mb-3">
+    <i class="bi bi-download me-2"></i>Descargar PDF del pedido
+  </a>
+  <a href="{{ url_for('heladeria_portal', hid=hid, tab='pedidos') }}"
+     class="btn btn-outline-secondary w-100">
+    Ver mis pedidos
+  </a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

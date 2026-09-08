@@ -11,6 +11,35 @@ from db import get_db, init_db, migrate_db
 app = Flask(__name__)
 app.secret_key = 'oggi_officina_gelato_2024_secret'
 
+# ─── VERSIÓN Y CHANGELOG ──────────────────────────────
+APP_VERSION = "2.2.0"
+CHANGELOG = {
+    "2.2.0": {
+        "fecha": "Sep 2026",
+        "cambios": [
+            "Revisión de pedido antes de confirmar — con equivalencias tarro/litro",
+            "Catálogo por heladería: controlá qué puede pedir cada local",
+            "Portal cliente rediseñado: tabs Stock, Pedir, Chat, Mis Pedidos",
+            "Animación de login y notificación de cambios de versión",
+            "Rol Visor: solo ve stock, no puede pedir",
+            "Reset de inventario desde panel de admin",
+            "PDF del pedido descargable al confirmar",
+            "Bases bloqueables por heladería",
+        ]
+    },
+    "2.1.0": {
+        "fecha": "Sep 2026",
+        "cambios": [
+            "Etiquetas térmicas 80×60mm B&W para impresora térmica",
+            "Remito térmico mini — guía de despacho con casillas de check",
+            "La heladería confirma recepción y reporta problemas",
+            "Chat bidireccional admin ↔ heladería con notificación de sonido",
+            "Bases pedibles por tarros o litros en pedidos",
+            "Estados de pedido: En camino, Esperando despacho",
+        ]
+    },
+}
+
 # Inicializar DB y migraciones al arrancar (funciona tanto en WSGI como local)
 init_db()
 migrate_db()
@@ -50,15 +79,28 @@ def superadmin_required(f):
 
 @app.context_processor
 def inject_user():
-    return dict(cu={
-        'id': session.get('user_id'),
-        'username': session.get('username'),
-        'nombre': session.get('nombre'),
-        'rol': session.get('rol'),
-        'heladeria_id': session.get('heladeria_id'),
-        'is_superadmin': session.get('rol') == 'superadmin',
-        'is_admin': session.get('rol') in ('superadmin', 'admin'),
-    })
+    show_cl = session.pop('show_changelog', False)
+    return dict(
+        cu={
+            'id': session.get('user_id'),
+            'username': session.get('username'),
+            'nombre': session.get('nombre'),
+            'rol': session.get('rol'),
+            'heladeria_id': session.get('heladeria_id'),
+            'is_superadmin': session.get('rol') == 'superadmin',
+            'is_admin': session.get('rol') in ('superadmin', 'admin'),
+        },
+        app_version=APP_VERSION,
+        show_changelog=show_cl,
+        changelog=CHANGELOG.get(APP_VERSION, {}),
+    )
+
+@app.after_request
+def set_version_cookie(response):
+    """Guardar versión en cookie para detectar actualizaciones."""
+    if 'user_id' in session:
+        response.set_cookie('oggi_version', APP_VERSION, max_age=60*60*24*365)
+    return response
 
 # ─────────────────────────────────────────────
 # LOGIN / LOGOUT
@@ -92,7 +134,11 @@ def login():
             session['nombre'] = user['nombre'] or user['username']
             session['rol'] = user['rol']
             session['heladeria_id'] = user['heladeria_id']
-            if user['rol'] == 'cliente':
+            # Mostrar changelog si es versión nueva
+            last_v = request.cookies.get('oggi_version', '')
+            if last_v != APP_VERSION:
+                session['show_changelog'] = True
+            if user['rol'] == 'cliente' or user['rol'] == 'visor':
                 return redirect(url_for('heladeria_portal', hid=user['heladeria_id']))
             next_url = request.args.get('next')
             return redirect(next_url or url_for('index'))
@@ -353,6 +399,13 @@ def sabor_editar(id):
 @superadmin_required
 def sabor_eliminar(id):
     db = get_db()
+    # Eliminar registros dependientes sin CASCADE
+    db.execute("DELETE FROM inventario_reservas WHERE sabor_id=?", (id,))
+    db.execute("""DELETE FROM produccion_etiquetas WHERE produccion_id IN
+                  (SELECT id FROM produccion WHERE sabor_id=?)""", (id,))
+    db.execute("DELETE FROM produccion WHERE sabor_id=?", (id,))
+    db.execute("DELETE FROM pedido_items WHERE sabor_id=?", (id,))
+    db.execute("DELETE FROM receta_bases WHERE sabor_id=?", (id,))
     db.execute("DELETE FROM sabores WHERE id=?", (id,))
     db.commit(); db.close()
     flash('Sabor eliminado', 'warning')
@@ -1019,6 +1072,7 @@ def etiqueta_custom():
             'nombre':            request.form.get('nombre', '').strip(),
             'cantidad':          float(request.form.get('cantidad') or 1),
             'tipo':              request.form.get('tipo', 'reserva'),
+            'litros':            float(request.form.get('litros') or 4),
             'fecha':             request.form.get('fecha') or date.today().isoformat(),
             'hora':              request.form.get('hora') or dt.now().strftime('%H:%M'),
             'fecha_vencimiento': request.form.get('fecha_vencimiento') or '',
@@ -1028,7 +1082,7 @@ def etiqueta_custom():
         try:
             copias = max(1, int(copias_raw))
         except:
-            copias = max(1, int(prod['cantidad'])) if prod['tipo'] == 'reserva' else 1
+            copias = max(1, int(prod['cantidad'])) if prod['tipo'] in ('reserva', 'helado') else 1
         pdf_bytes = pdf_etiqueta(prod, usuario, copias=copias)
         from flask import Response
         return Response(pdf_bytes, mimetype='application/pdf',
@@ -1389,12 +1443,27 @@ def heladeria_portal(hid):
     sabores = db.execute("""
         SELECT s.*, COALESCE(ir.cantidad, 0) as stock_reservas
         FROM sabores s LEFT JOIN inventario_reservas ir ON ir.sabor_id=s.id
-        WHERE s.disponibilidad != 'no_disponible' ORDER BY s.nombre
-    """).fetchall()
+        WHERE s.disponibilidad != 'no_disponible'
+          AND s.id NOT IN (
+              SELECT sabor_id FROM heladeria_sabor_bloqueado WHERE heladeria_id=?
+          )
+        ORDER BY s.nombre
+    """, (hid,)).fetchall()
+    bases_pedibles = db.execute("""
+        SELECT b.*, COALESCE(ib.stock_kg, 0) as stock_kg
+        FROM bases b LEFT JOIN inventario_bases ib ON ib.base_id=b.id
+        WHERE b.pedible=1
+          AND b.id NOT IN (
+              SELECT base_id FROM heladeria_base_bloqueada WHERE heladeria_id=?
+          )
+        ORDER BY b.nombre
+    """, (hid,)).fetchall()
     mis_pedidos = db.execute("""
         SELECT pi.*,
-               (SELECT GROUP_CONCAT(s.nombre || ' x' || pit.cantidad, ', ')
-                FROM pedido_items pit JOIN sabores s ON s.id=pit.sabor_id
+               (SELECT GROUP_CONCAT(COALESCE(s.nombre, b.nombre) || ' x' || pit.cantidad, ', ')
+                FROM pedido_items pit
+                LEFT JOIN sabores s ON s.id=pit.sabor_id
+                LEFT JOIN bases b ON b.id=pit.base_id
                 WHERE pit.pedido_id=pi.id) as resumen
         FROM pedidos_internos pi WHERE pi.heladeria_id=?
         ORDER BY pi.created_at DESC LIMIT 10
@@ -1402,10 +1471,17 @@ def heladeria_portal(hid):
     mensajes = db.execute(
         "SELECT * FROM mensajes WHERE heladeria_id=? ORDER BY created_at ASC", (hid,)
     ).fetchall()
+    mensajes_no_leidos = db.execute(
+        "SELECT COUNT(*) FROM mensajes WHERE heladeria_id=? AND desde='admin' AND completado=0", (hid,)
+    ).fetchone()[0]
     db.close()
+    tab = request.args.get('tab', 'stock')
     return render_template('heladeria_portal.html',
                            heladeria=heladeria, sabores=sabores,
-                           mis_pedidos=mis_pedidos, mensajes=mensajes)
+                           bases_pedibles=bases_pedibles,
+                           mis_pedidos=mis_pedidos, mensajes=mensajes,
+                           mensajes_no_leidos=mensajes_no_leidos,
+                           tab=tab)
 
 @app.route('/heladeria/<int:hid>/pedir', methods=['GET', 'POST'])
 @login_required
@@ -1442,20 +1518,94 @@ def heladeria_pedido(hid):
             db.execute("INSERT INTO pedido_items (pedido_id, base_id, cantidad, unidad, tipo_entrega) VALUES (?,?,?,?,'bajo_pedido')",
                        (pedido_id, bid, cant, unidad))
         db.commit(); db.close()
-        flash('Pedido enviado correctamente', 'success')
-        return redirect(url_for('heladeria_portal', hid=hid))
+        return redirect(url_for('pedido_confirmacion_cliente', hid=hid, id=pedido_id))
     sabores = db.execute("""
         SELECT s.*, COALESCE(ir.cantidad, 0) as stock_reservas
         FROM sabores s LEFT JOIN inventario_reservas ir ON ir.sabor_id=s.id
-        WHERE s.disponibilidad != 'no_disponible' ORDER BY s.nombre
-    """).fetchall()
+        WHERE s.disponibilidad != 'no_disponible'
+          AND s.id NOT IN (SELECT sabor_id FROM heladeria_sabor_bloqueado WHERE heladeria_id=?)
+        ORDER BY s.nombre
+    """, (hid,)).fetchall()
     bases_pedibles = db.execute("""
         SELECT b.*, COALESCE(ib.stock_kg, 0) as stock_kg
         FROM bases b LEFT JOIN inventario_bases ib ON ib.base_id=b.id
-        WHERE b.pedible=1 ORDER BY b.nombre
-    """).fetchall()
+        WHERE b.pedible=1
+          AND b.id NOT IN (SELECT base_id FROM heladeria_base_bloqueada WHERE heladeria_id=?)
+        ORDER BY b.nombre
+    """, (hid,)).fetchall()
     db.close()
     return render_template('pedido_nuevo.html', heladeria=heladeria, sabores=sabores, bases=bases_pedibles)
+
+@app.route('/heladeria/<int:hid>/pedido/<int:id>/confirmacion')
+@login_required
+def pedido_confirmacion_cliente(hid, id):
+    db = get_db()
+    pedido = db.execute("""
+        SELECT pi.*, h.nombre as heladeria_nombre
+        FROM pedidos_internos pi JOIN heladerias h ON h.id=pi.heladeria_id WHERE pi.id=?
+    """, (id,)).fetchone()
+    items = db.execute("""
+        SELECT pit.*, COALESCE(s.nombre, b.nombre) as nombre_item
+        FROM pedido_items pit
+        LEFT JOIN sabores s ON s.id=pit.sabor_id
+        LEFT JOIN bases b ON b.id=pit.base_id
+        WHERE pit.pedido_id=?
+    """, (id,)).fetchall()
+    db.close()
+    return render_template('pedido_confirmacion.html', pedido=pedido, items=items, hid=hid)
+
+@app.route('/heladeria/<int:hid>/pedido/<int:id>/pdf-cliente')
+@login_required
+def pedido_pdf_cliente(hid, id):
+    from pdf_gen import pdf_remito_termico
+    from flask import Response
+    db = get_db()
+    pedido = db.execute("""
+        SELECT pi.*, h.nombre as heladeria_nombre
+        FROM pedidos_internos pi JOIN heladerias h ON h.id=pi.heladeria_id WHERE pi.id=?
+    """, (id,)).fetchone()
+    items = db.execute("""
+        SELECT pit.*, COALESCE(s.nombre, b.nombre) as sabor_nombre
+        FROM pedido_items pit
+        LEFT JOIN sabores s ON s.id=pit.sabor_id
+        LEFT JOIN bases b ON b.id=pit.base_id
+        WHERE pit.pedido_id=?
+    """, (id,)).fetchall()
+    db.close()
+    pdf_bytes = pdf_remito_termico(pedido, items)
+    return Response(pdf_bytes, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename=pedido_{id}.pdf'})
+
+@app.route('/api/mensajes/no-leidos/<int:hid>')
+@login_required
+def api_mensajes_no_leidos(hid):
+    db = get_db()
+    count = db.execute(
+        "SELECT COUNT(*) FROM mensajes WHERE heladeria_id=? AND desde='admin' AND completado=0", (hid,)
+    ).fetchone()[0]
+    db.close()
+    return jsonify({'count': count})
+
+@app.route('/api/mensajes/marcar-leidos/<int:hid>', methods=['POST'])
+@login_required
+def api_mensajes_marcar_leidos(hid):
+    db = get_db()
+    db.execute("UPDATE mensajes SET completado=1, completado_at=CURRENT_TIMESTAMP WHERE heladeria_id=? AND desde='admin' AND completado=0", (hid,))
+    db.commit(); db.close()
+    return jsonify({'ok': True})
+
+@app.route('/admin/reset-inventario', methods=['POST'])
+@superadmin_required
+def reset_inventario():
+    db = get_db()
+    db.execute("DELETE FROM inventario_reservas")
+    db.execute("DELETE FROM inventario_bases")
+    db.execute("DELETE FROM produccion_etiquetas")
+    db.execute("DELETE FROM produccion")
+    db.execute("DELETE FROM produccion_bases")
+    db.commit(); db.close()
+    flash('Inventario reseteado. Recetas, sabores, bases e insumos conservados.', 'success')
+    return redirect(url_for('inventario'))
 
 # ─────────────────────────────────────────────
 # PEDIDO DE INSUMOS
@@ -1625,6 +1775,47 @@ def heladerias():
     items = db.execute("SELECT * FROM heladerias ORDER BY nombre").fetchall()
     db.close()
     return render_template('heladerias.html', heladerias=items)
+
+@app.route('/heladerias/<int:hid>/catalogo', methods=['GET', 'POST'])
+@superadmin_required
+def heladeria_catalogo(hid):
+    db = get_db()
+    heladeria = db.execute("SELECT * FROM heladerias WHERE id=?", (hid,)).fetchone()
+    if request.method == 'POST':
+        # Guardar sabores bloqueados (los que NO están en los checkboxes marcados)
+        sabores_all = db.execute("SELECT id FROM sabores").fetchall()
+        bases_all = db.execute("SELECT id FROM bases WHERE pedible=1").fetchall()
+        permitidos_sabores = set(int(x) for x in request.form.getlist('sabor_id[]'))
+        permitidos_bases   = set(int(x) for x in request.form.getlist('base_id[]'))
+        db.execute("DELETE FROM heladeria_sabor_bloqueado WHERE heladeria_id=?", (hid,))
+        db.execute("DELETE FROM heladeria_base_bloqueada WHERE heladeria_id=?", (hid,))
+        for s in sabores_all:
+            if s['id'] not in permitidos_sabores:
+                db.execute("INSERT OR IGNORE INTO heladeria_sabor_bloqueado VALUES (?,?)", (hid, s['id']))
+        for b in bases_all:
+            if b['id'] not in permitidos_bases:
+                db.execute("INSERT OR IGNORE INTO heladeria_base_bloqueada VALUES (?,?)", (hid, b['id']))
+        db.commit(); db.close()
+        flash('Catálogo actualizado', 'success')
+        return redirect(url_for('heladerias'))
+    sabores = db.execute("""
+        SELECT s.id, s.nombre,
+               CASE WHEN hsb.sabor_id IS NULL THEN 1 ELSE 0 END as permitido
+        FROM sabores s
+        LEFT JOIN heladeria_sabor_bloqueado hsb
+               ON hsb.sabor_id=s.id AND hsb.heladeria_id=?
+        ORDER BY s.nombre
+    """, (hid,)).fetchall()
+    bases = db.execute("""
+        SELECT b.id, b.nombre,
+               CASE WHEN hbb.base_id IS NULL THEN 1 ELSE 0 END as permitido
+        FROM bases b
+        LEFT JOIN heladeria_base_bloqueada hbb
+               ON hbb.base_id=b.id AND hbb.heladeria_id=?
+        WHERE b.pedible=1 ORDER BY b.nombre
+    """, (hid,)).fetchall()
+    db.close()
+    return render_template('heladeria_catalogo.html', heladeria=heladeria, sabores=sabores, bases=bases)
 
 @app.route('/heladerias/nueva', methods=['POST'])
 @superadmin_required

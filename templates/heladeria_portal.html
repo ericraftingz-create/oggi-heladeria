@@ -8,140 +8,343 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
   <style>
-    :root { --brown: #7B3A10; --dark: #2D1000; --beige: #F5E6CC; --light: #F9F0E1; }
-    body { background: var(--light); }
+    :root { --brown:#7B3A10; --dark:#2D1000; --beige:#F5E6CC; --light:#F9F0E1; }
+    * { box-sizing: border-box; }
+    body { background:var(--light); font-family:'Segoe UI',sans-serif; margin:0; }
+
+    /* TOPBAR */
     .topbar {
-      background: var(--dark); color: #fff; padding: .8rem 1.5rem;
-      display: flex; align-items: center; justify-content: space-between;
+      background:var(--dark); color:#fff; padding:.75rem 1.25rem;
+      display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:200; box-shadow:0 2px 8px rgba(0,0,0,.3);
     }
-    .topbar .brand { font-family: 'Dancing Script', cursive; font-size: 1.5rem; color: var(--beige); }
-    .topbar .shop-name { font-size: .85rem; color: rgba(245,230,204,.65); }
-    .container-main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
-    .sabor-card {
-      background: #fff; border-radius: 10px; padding: 1rem 1.25rem;
-      box-shadow: 0 1px 4px rgba(45,16,0,.08); margin-bottom: .6rem;
-      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    .topbar .brand { font-family:'Dancing Script',cursive; font-size:1.6rem; color:var(--beige); line-height:1; }
+    .topbar .shop { font-size:.8rem; color:rgba(245,230,204,.6); }
+
+    /* NAV TABS */
+    .nav-tabs-portal {
+      background:#fff; border-bottom:2px solid #f0e0cc;
+      display:flex; overflow-x:auto; position:sticky; top:56px; z-index:100;
+      box-shadow:0 1px 4px rgba(45,16,0,.06);
     }
-    .sabor-nombre { font-weight: 600; color: var(--dark); }
-    .badge-disponible  { background: #198754 !important; }
-    .badge-bajo_pedido { background: #fd7e14 !important; }
-    .btn-pedir { background: var(--brown); border: none; color: #fff; border-radius: 8px;
-                 font-weight: 600; }
-    .btn-pedir:hover { background: var(--dark); color: #fff; }
-    .flash-container { position:fixed; top:1rem; right:1rem; z-index:9999; min-width:280px; }
-    footer { text-align:center; font-size:.7rem; color:#b08060; font-style:italic; padding:2rem 0 1rem; }
+    .nav-tabs-portal .tab-btn {
+      flex:1; min-width:70px; padding:.7rem .5rem; border:none; background:none;
+      font-size:.85rem; font-weight:600; color:#8B6347; cursor:pointer;
+      border-bottom:3px solid transparent; transition:all .2s; white-space:nowrap;
+    }
+    .nav-tabs-portal .tab-btn.active {
+      color:var(--dark); border-bottom-color:var(--brown);
+    }
+    .nav-tabs-portal .tab-btn:hover { background:var(--light); }
+    .badge-count {
+      background:#dc3545; color:#fff; border-radius:10px; font-size:.65rem;
+      padding:.1rem .4rem; margin-left:.3rem; font-weight:700;
+    }
+
+    /* CONTENT */
+    .tab-content { display:none; max-width:720px; margin:0 auto; padding:1.25rem 1rem 5rem; }
+    .tab-content.active { display:block; }
+
+    /* CARDS */
+    .item-card {
+      background:#fff; border-radius:12px; padding:1rem 1.25rem; margin-bottom:.6rem;
+      box-shadow:0 1px 4px rgba(45,16,0,.08); display:flex;
+      align-items:center; justify-content:space-between; gap:.75rem;
+    }
+    .item-nombre { font-weight:700; color:var(--dark); margin-bottom:.15rem; }
+    .item-sub { font-size:.78rem; color:#8B6347; }
+    .badge-disponible { background:#198754 !important; }
+    .badge-bajo_pedido { background:#fd7e14 !important; }
+    .badge-no_disponible { background:#dc3545 !important; }
+
+    /* ORDER FORM */
+    .qty-row {
+      background:#fff; border-radius:12px; padding:.85rem 1.1rem; margin-bottom:.5rem;
+      display:flex; align-items:center; gap:.75rem;
+      box-shadow:0 1px 4px rgba(45,16,0,.07);
+    }
+    .qty-input {
+      width:72px; text-align:center; border:1.5px solid #e0ccb8;
+      background:var(--light); border-radius:8px; padding:.35rem; font-weight:600;
+      color:var(--dark); font-size:1rem;
+    }
+    .qty-input:focus { outline:none; border-color:var(--brown); }
+    .btn-pedir {
+      background:var(--brown); border:none; color:#fff; font-weight:700;
+      border-radius:10px; padding:.75rem; font-size:1rem; width:100%;
+      transition:background .2s;
+    }
+    .btn-pedir:hover { background:var(--dark); }
+    .section-title {
+      font-size:.78rem; font-weight:700; color:#8B6347; text-transform:uppercase;
+      letter-spacing:.08em; padding:.5rem 0 .35rem; border-bottom:1px solid #f0e0cc; margin-bottom:.6rem;
+    }
+
+    /* CHAT */
+    .chat-box {
+      background:#fff; border-radius:12px; padding:1rem;
+      max-height:50vh; overflow-y:auto;
+      box-shadow:0 1px 4px rgba(45,16,0,.08); margin-bottom:.75rem;
+    }
+    .bubble { display:flex; margin-bottom:.6rem; }
+    .bubble.mine { justify-content:flex-end; }
+    .bubble-text {
+      max-width:78%; padding:.55rem .9rem; border-radius:14px;
+      font-size:.88rem; line-height:1.4;
+    }
+    .bubble.mine .bubble-text { background:var(--brown); color:#fff; border-bottom-right-radius:4px; }
+    .bubble.theirs .bubble-text { background:#f0e0cc; color:var(--dark); border-bottom-left-radius:4px; }
+    .bubble-time { font-size:.62rem; opacity:.55; margin-top:.25rem; text-align:right; }
+    .chat-input { display:flex; gap:.5rem; }
+    .chat-input input {
+      flex:1; border:1.5px solid #e0ccb8; border-radius:10px; padding:.55rem .9rem;
+      background:var(--light); font-size:.9rem; color:var(--dark);
+    }
+    .chat-input input:focus { outline:none; border-color:var(--brown); }
+    .btn-send-chat {
+      background:var(--brown); border:none; color:#fff; border-radius:10px;
+      padding:.55rem 1rem; font-size:1rem; cursor:pointer;
+    }
+
+    /* PEDIDOS HISTORY */
+    .pedido-card {
+      background:#fff; border-radius:12px; padding:1rem 1.25rem; margin-bottom:.6rem;
+      box-shadow:0 1px 4px rgba(45,16,0,.08);
+    }
+    .estado-badge { font-size:.75rem; font-weight:700; padding:.25rem .65rem; border-radius:20px; }
+
+    /* FLASH */
+    .flash-wrap { position:fixed; top:3.5rem; right:1rem; z-index:9999; min-width:280px; }
+
+    /* VISOR banner */
+    .visor-banner {
+      background:var(--beige); border:1.5px solid #e0ccb8; border-radius:10px;
+      padding:.65rem 1rem; margin-bottom:1rem; font-size:.85rem; color:var(--dark); text-align:center;
+    }
   </style>
 </head>
 <body>
+
+<!-- TOPBAR -->
 <div class="topbar">
   <div>
     <div class="brand">oggi</div>
-    <div class="shop-name">{{ heladeria.nombre }}</div>
-    <small style="color:rgba(245,230,204,.65)">Hola, {{ cu.nombre or cu.username }}</small>
+    <div class="shop">{{ heladeria.nombre }}{% if cu %} · {{ cu.nombre or cu.username }}{% endif %}</div>
   </div>
-  <div class="d-flex gap-2 align-items-center">
-    <a href="{{ url_for('heladeria_pedido', hid=heladeria.id) }}" class="btn btn-pedir btn-sm">
-      <i class="bi bi-cart-plus me-1"></i>Hacer pedido
-    </a>
+  <div class="d-flex gap-2">
     <form method="post" action="{{ url_for('logout') }}" class="mb-0">
-      <button class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i></button>
+      <button class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right"></i></button>
     </form>
   </div>
 </div>
 
-<div class="flash-container">
+<!-- FLASH -->
+<div class="flash-wrap">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
-    <div class="alert alert-{{ 'success' if cat == 'success' else 'warning' }} alert-dismissible fade show shadow-sm">
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'warning' if cat == 'warning' else 'danger' }} alert-dismissible fade show shadow-sm">
       {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     {% endfor %}
   {% endwith %}
 </div>
 
-<div class="container-main">
-  <h5 class="mb-3" style="color:var(--dark); font-weight:700">Sabores disponibles</h5>
+<!-- NAV TABS -->
+<div class="nav-tabs-portal">
+  <button class="tab-btn" data-tab="stock" onclick="switchTab('stock')">
+    <i class="bi bi-boxes me-1"></i>Stock
+  </button>
+  {% if cu and cu.rol not in ('visor',) %}
+  <button class="tab-btn" data-tab="pedir" onclick="switchTab('pedir')">
+    <i class="bi bi-cart-plus me-1"></i>Pedir
+  </button>
+  <button class="tab-btn" data-tab="chat" onclick="switchTab('chat')">
+    <i class="bi bi-chat-dots me-1"></i>Chat
+    <span class="badge-count" id="chatBadge" style="display:{% if mensajes_no_leidos > 0 %}inline{% else %}none{% endif %}">
+      {{ mensajes_no_leidos }}
+    </span>
+  </button>
+  <button class="tab-btn" data-tab="pedidos" onclick="switchTab('pedidos')">
+    <i class="bi bi-clock-history me-1"></i>Mis pedidos
+  </button>
+  {% endif %}
+</div>
 
+<!-- TAB: STOCK -->
+<div class="tab-content" id="tab-stock">
+  {% if cu and cu.rol == 'visor' %}
+  <div class="visor-banner">
+    <i class="bi bi-eye me-1"></i> Vista de solo lectura — muestra el stock actual disponible
+  </div>
+  {% endif %}
   {% if sabores %}
+  <div class="section-title">Sabores</div>
   {% for s in sabores %}
-  <div class="sabor-card">
+  <div class="item-card">
     <div>
-      <div class="sabor-nombre">{{ s.nombre }}</div>
-      {% if s.notas %}
-      <small class="text-muted">{{ s.notas }}</small>
-      {% endif %}
+      <div class="item-nombre">{{ s.nombre }}</div>
+      <div class="item-sub">
+        {% if s.stock_reservas > 0 %}
+        <span class="text-success"><i class="bi bi-check-circle me-1"></i>{{ s.stock_reservas }} reserva{{ 's' if s.stock_reservas != 1 }} en stock</span>
+        {% else %}
+        <span class="text-muted">Sin stock — a producir</span>
+        {% endif %}
+      </div>
     </div>
-    <div class="d-flex align-items-center gap-3">
-      {% if s.stock_reservas > 0 %}
-      <span class="text-success small fw-semibold">
-        <i class="bi bi-boxes me-1"></i>{{ s.stock_reservas }} en stock
-      </span>
-      {% endif %}
-      <span class="badge badge-{{ s.disponibilidad }}">
-        {% if s.disponibilidad == 'disponible' %}✅ Disponible{% else %}🟠 Bajo pedido{% endif %}
-      </span>
-    </div>
+    <span class="badge badge-{{ s.disponibilidad }} text-white" style="font-size:.75rem">
+      {% if s.disponibilidad == 'disponible' %}Disponible
+      {% elif s.disponibilidad == 'bajo_pedido' %}Bajo pedido
+      {% else %}No disponible{% endif %}
+    </span>
   </div>
   {% endfor %}
   {% else %}
-  <div class="alert alert-info">No hay sabores disponibles en este momento.</div>
+  <div class="alert alert-info mt-3">No hay sabores disponibles.</div>
   {% endif %}
 
-  <!-- CHAT -->
-  <h5 class="mt-4 mb-2" style="color:var(--dark); font-weight:700">
-    <i class="bi bi-chat-dots-fill text-warning me-1"></i>Chat con OGGI
-  </h5>
-  <div id="chatBox" style="background:#fff; border-radius:12px; padding:1rem; max-height:320px; overflow-y:auto;
-       box-shadow:0 1px 4px rgba(45,16,0,.08); margin-bottom:.75rem;">
+  {% if bases_pedibles %}
+  <div class="section-title mt-3">Bases</div>
+  {% for b in bases_pedibles %}
+  <div class="item-card">
+    <div>
+      <div class="item-nombre">{{ b.nombre }}</div>
+      <div class="item-sub"><i class="bi bi-boxes me-1"></i>{{ '%.1f'|format(b.stock_kg) }} kg en stock</div>
+    </div>
+    <span class="badge bg-secondary text-white" style="font-size:.75rem">Base</span>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<!-- TAB: PEDIR -->
+{% if cu and cu.rol not in ('visor',) %}
+<div class="tab-content" id="tab-pedir">
+  <form method="post" action="{{ url_for('heladeria_pedido', hid=heladeria.id) }}" id="pedidoForm">
+    {% if sabores %}
+    <div class="section-title">Sabores (tarros de 4 L)</div>
+    {% for s in sabores %}
+    <div class="qty-row">
+      <input type="hidden" name="sabor_id[]" value="{{ s.id }}">
+      <div class="flex-grow-1">
+        <div class="item-nombre sabor-nombre-label" style="font-size:.95rem">{{ s.nombre }}</div>
+        <div class="item-sub">
+          {% if s.stock_reservas > 0 %}
+          <span class="text-success">{{ s.stock_reservas }} en stock</span>
+          {% else %}<span class="text-warning">A producir</span>{% endif %}
+          · <span class="badge badge-{{ s.disponibilidad }} text-white" style="font-size:.65rem">
+            {{ 'Disponible' if s.disponibilidad=='disponible' else 'Bajo pedido' }}</span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary qty-minus" style="padding:.2rem .5rem">−</button>
+        <input type="number" name="cantidad[]" class="qty-input" min="0" value="0">
+        <button type="button" class="btn btn-sm btn-outline-secondary qty-plus" style="padding:.2rem .5rem">+</button>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if bases_pedibles %}
+    <div class="section-title mt-3">Bases</div>
+    {% for b in bases_pedibles %}
+    <div class="qty-row">
+      <input type="hidden" name="base_id[]" value="{{ b.id }}">
+      <div class="flex-grow-1">
+        <div class="item-nombre base-nombre-label" style="font-size:.95rem">{{ b.nombre }}</div>
+        <div class="item-sub">{{ '%.1f'|format(b.stock_kg) }} kg en stock</div>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <input type="number" name="base_cantidad[]" class="qty-input" min="0" step="any" value="0" style="width:65px">
+        <select name="base_unidad[]" class="form-select form-select-sm" style="width:75px; border-color:#e0ccb8; background:var(--light)">
+          <option value="tarro">tarro</option>
+          <option value="litro">litro</option>
+        </select>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="mb-3 mt-3">
+      <label class="form-label fw-semibold" style="color:var(--dark); font-size:.9rem">Notas (opcional)</label>
+      <textarea name="notas" class="form-control" rows="2"
+                style="border-color:#e0ccb8; background:var(--light); border-radius:10px"
+                placeholder="Urgencia, instrucciones especiales…"></textarea>
+    </div>
+    <button type="button" class="btn-pedir" onclick="revisarPedido()">
+      <i class="bi bi-eye me-2"></i>Revisar pedido antes de enviar
+    </button>
+  </form>
+
+  <!-- MODAL REVISIÓN -->
+  <div class="modal fade" id="modalRevision" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:14px; border:none">
+        <div class="modal-header" style="background:var(--dark); color:#fff; border-radius:14px 14px 0 0">
+          <h5 class="modal-title fw-bold"><i class="bi bi-eye me-2"></i>Revisar pedido</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- llenado por JS -->
+        </div>
+        <div class="modal-footer flex-column gap-2">
+          <button type="button" class="btn btn-success w-100 fw-bold" id="btnConfirmar"
+                  onclick="document.getElementById('pedidoForm').submit()">
+            <i class="bi bi-send me-2"></i>Confirmar y enviar pedido
+          </button>
+          <button type="button" class="btn btn-outline-danger w-100" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle me-2"></i>Cancelar — quiero corregir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CHAT -->
+<div class="tab-content" id="tab-chat">
+  <div class="chat-box" id="chatBox">
     {% if mensajes %}
     {% for m in mensajes %}
-    <div class="d-flex mb-2 {% if m.desde == 'heladeria' %}justify-content-end{% endif %}">
-      <div style="max-width:75%; padding:.5rem .9rem; border-radius:14px; font-size:.9rem;
-           {% if m.desde == 'heladeria' %}background:#7B3A10; color:#fff;{% else %}background:#F5E6CC; color:#2D1000;{% endif %}">
+    <div class="bubble {% if m.desde == 'heladeria' %}mine{% else %}theirs{% endif %}">
+      <div class="bubble-text">
         {{ m.contenido }}
-        <div style="font-size:.65rem; opacity:.6; margin-top:.2rem; text-align:{% if m.desde == 'heladeria' %}right{% else %}left{% endif %}">
-          {{ m.created_at[:16] }}
-        </div>
+        <div class="bubble-time">{{ m.created_at[:16] }}</div>
       </div>
     </div>
     {% endfor %}
     {% else %}
-    <p class="text-muted small text-center mb-0">Sin mensajes todavía.</p>
+    <p class="text-muted text-center small mb-0 pt-2">Sin mensajes todavía.</p>
     {% endif %}
   </div>
-  <form method="post" action="{{ url_for('mensaje_heladeria_responder', hid=heladeria.id) }}" class="d-flex gap-2">
-    <input type="text" name="contenido" class="form-control" placeholder="Escribir mensaje…" required
-           style="border-color:#e0ccb8; background:var(--light)">
-    <button type="submit" class="btn btn-pedir btn-sm px-3">
-      <i class="bi bi-send"></i>
-    </button>
+  <form method="post" action="{{ url_for('mensaje_heladeria_responder', hid=heladeria.id) }}" class="chat-input" id="chatForm">
+    <input type="text" name="contenido" id="chatInput" placeholder="Escribir mensaje…" required autocomplete="off">
+    <button type="submit" class="btn-send-chat"><i class="bi bi-send"></i></button>
   </form>
+</div>
 
+<!-- TAB: MIS PEDIDOS -->
+<div class="tab-content" id="tab-pedidos">
   {% if mis_pedidos %}
-  <h5 class="mt-4 mb-3" style="color:var(--dark); font-weight:700">Mis pedidos recientes</h5>
   {% for p in mis_pedidos %}
-  <div class="sabor-card flex-column align-items-stretch">
-    <div class="d-flex justify-content-between align-items-start w-100">
+  <div class="pedido-card">
+    <div class="d-flex justify-content-between align-items-start mb-1">
       <div>
-        <div class="sabor-nombre">Pedido #{{ p.id }}</div>
-        <small class="text-muted">{{ p.resumen or '—' }}</small>
+        <span class="fw-bold" style="color:var(--dark)">Pedido #{{ p.id }}</span>
+        <span class="text-muted small ms-2">{{ p.created_at[:10] }}</span>
       </div>
-      <div class="text-end">
-        <span class="badge
-          {% if p.estado == 'pendiente' %}bg-warning text-dark
-          {% elif p.estado == 'en_produccion' %}bg-primary
-          {% elif p.estado == 'esperando_despacho' %}bg-info text-dark
-          {% elif p.estado == 'en_camino' %}bg-secondary
-          {% else %}bg-success{% endif %}">
-          {{ p.estado|replace('_',' ') }}
-        </span>
-        <br><small class="text-muted">{{ p.created_at[:10] }}</small>
-      </div>
+      <span class="estado-badge
+        {% if p.estado == 'pendiente' %}bg-warning text-dark
+        {% elif p.estado == 'en_produccion' %}bg-primary text-white
+        {% elif p.estado == 'esperando_despacho' %}bg-info text-dark
+        {% elif p.estado == 'en_camino' %}bg-secondary text-white
+        {% else %}bg-success text-white{% endif %}">
+        {{ p.estado|replace('_',' ')|title }}
+      </span>
     </div>
+    <div class="text-muted small">{{ p.resumen or '—' }}</div>
 
     {% if p.estado == 'en_camino' %}
-    <div class="w-100 mt-2 pt-2" style="border-top:1px solid #f0e0cc">
-      <!-- Confirmar OK -->
+    <div class="mt-2 pt-2" style="border-top:1px solid #f0e0cc">
       <form method="post" action="{{ url_for('heladeria_confirmar_pedido', id=p.id) }}" class="mb-2">
         <input type="hidden" name="problema" value="">
         <button type="submit" class="btn btn-success btn-sm w-100"
@@ -149,12 +352,11 @@
           <i class="bi bi-check-circle me-1"></i>Confirmar recepción — todo OK
         </button>
       </form>
-      <!-- Reportar problema -->
       <details>
         <summary style="font-size:.82rem; color:#c0392b; cursor:pointer">⚠️ Faltó algo o hubo un error</summary>
         <form method="post" action="{{ url_for('heladeria_confirmar_pedido', id=p.id) }}" class="mt-2">
           <textarea name="problema" class="form-control form-control-sm mb-2" rows="2"
-                    placeholder="Ej: Faltaron 2 tarros de fresa, llegó derretido…" required
+                    placeholder="Describí qué faltó o estuvo mal…" required
                     style="border-color:#e0ccb8"></textarea>
           <button type="submit" class="btn btn-danger btn-sm w-100">
             <i class="bi bi-exclamation-triangle me-1"></i>Enviar reporte y confirmar recepción
@@ -165,14 +367,201 @@
     {% endif %}
   </div>
   {% endfor %}
+  {% else %}
+  <div class="alert alert-info mt-2">No hay pedidos registrados.</div>
   {% endif %}
 </div>
+{% endif %}
 
-<footer>Desarrollado por Erick Espina · Sr. Finley &nbsp;·&nbsp; OGGI officina gelato gusto italiano</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  const chatBox = document.getElementById('chatBox');
-  if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+// ─── TAB SYSTEM ───────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const content = document.getElementById('tab-' + name);
+  if (content) content.classList.add('active');
+  document.querySelectorAll('.tab-btn[data-tab="' + name + '"]').forEach(el => el.classList.add('active'));
+  localStorage.setItem('oggi_tab_{{ heladeria.id }}', name);
+  if (name === 'chat') {
+    scrollChat();
+    markMessagesRead();
+  }
+}
+
+// Restaurar tab activo o usar el del servidor
+const savedTab = localStorage.getItem('oggi_tab_{{ heladeria.id }}') || '{{ tab }}';
+switchTab(savedTab);
+
+// ─── CHAT SCROLL ─────────────────────────────────────
+function scrollChat() {
+  const box = document.getElementById('chatBox');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+scrollChat();
+
+// ─── MARCAR MENSAJES COMO LEÍDOS ─────────────────────
+function markMessagesRead() {
+  // Marcamos completado los mensajes del admin al abrir chat
+  fetch('/api/mensajes/marcar-leidos/{{ heladeria.id }}', {method:'POST'}).catch(()=>{});
+}
+
+// ─── POLLING MENSAJES NUEVOS ──────────────────────────
+let lastCount = {{ mensajes_no_leidos }};
+function checkNewMessages() {
+  fetch('/api/mensajes/no-leidos/{{ heladeria.id }}')
+    .then(r => r.json()).then(data => {
+      const badge = document.getElementById('chatBadge');
+      if (!badge) return;
+      if (data.count > 0) {
+        badge.textContent = data.count;
+        badge.style.display = 'inline';
+      } else {
+        badge.style.display = 'none';
+      }
+      if (data.count > lastCount && lastCount !== null) {
+        // Notificación de nuevo mensaje
+        playBeep();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('OGGI — Nuevo mensaje', { body: 'Tenés un mensaje nuevo de la heladería.' });
+        }
+      }
+      lastCount = data.count;
+    }).catch(()=>{});
+}
+setInterval(checkNewMessages, 20000);
+
+// ─── REVISIÓN DE PEDIDO ──────────────────────────────
+function revisarPedido() {
+  const items = [];
+
+  // Sabores
+  const saboresNombres = [...document.querySelectorAll('.sabor-nombre-label')];
+  document.querySelectorAll('input[name="cantidad[]"]').forEach((inp, i) => {
+    const cant = parseFloat(inp.value) || 0;
+    if (cant <= 0) return;
+    const label = saboresNombres[i] ? saboresNombres[i].textContent : 'Sabor';
+    const litros = (cant * 4).toFixed(1);
+    items.push(`
+      <div style="background:#f9f0e1; border-radius:8px; padding:.6rem 1rem; margin-bottom:.4rem; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; color:#2D1000">${label}</span>
+        <span style="font-size:.9rem; color:#7B3A10">
+          <strong>${cant}</strong> tarro${cant!=1?'s':''} = <strong>${litros} L</strong>
+        </span>
+      </div>`);
+  });
+
+  // Bases
+  const basesNombres = [...document.querySelectorAll('.base-nombre-label')];
+  const baseCants = document.querySelectorAll('input[name="base_cantidad[]"]');
+  const baseUnits = document.querySelectorAll('select[name="base_unidad[]"]');
+  baseCants.forEach((inp, i) => {
+    const cant = parseFloat(inp.value) || 0;
+    if (cant <= 0) return;
+    const unidad = baseUnits[i] ? baseUnits[i].value : 'tarro';
+    const label = basesNombres[i] ? basesNombres[i].textContent : 'Base';
+    const litros = unidad === 'tarro' ? (cant * 4).toFixed(1) : cant.toFixed(1);
+    const equiv = unidad === 'tarro'
+      ? `= <strong>${litros} L</strong>`
+      : `= <strong>${(cant/4).toFixed(2)} tarros</strong>`;
+    items.push(`
+      <div style="background:#f0f9f0; border-radius:8px; padding:.6rem 1rem; margin-bottom:.4rem; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; color:#2D1000">${label} <small style="font-weight:400">(base)</small></span>
+        <span style="font-size:.9rem; color:#197543">
+          <strong>${cant}</strong> ${unidad}${cant!=1&&unidad==='tarro'?'s':''} ${equiv}
+        </span>
+      </div>`);
+  });
+
+  if (items.length === 0) {
+    alert('Agregá al menos un producto con cantidad mayor a 0.');
+    return;
+  }
+
+  document.getElementById('modalBody').innerHTML = `
+    <p style="color:#555; font-size:.88rem; margin-bottom:.75rem">
+      <i class="bi bi-info-circle me-1 text-warning"></i>
+      Revisá tu pedido. <strong>Una vez confirmado no se puede deshacer</strong> — si hay un error cancela y corrígelo.
+    </p>
+    ${items.join('')}
+  `;
+
+  new bootstrap.Modal(document.getElementById('modalRevision')).show();
+}
+
+// ─── BOTONES +/− ─────────────────────────────────────
+document.querySelectorAll('.qty-plus').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = btn.previousElementSibling;
+    input.value = (parseInt(input.value) || 0) + 1;
+  });
+});
+document.querySelectorAll('.qty-minus').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = btn.nextElementSibling;
+    const v = (parseInt(input.value) || 0) - 1;
+    input.value = Math.max(0, v);
+  });
+});
+
+// ─── BEEP ─────────────────────────────────────────────
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 700; o.type = 'sine';
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    o.start(); o.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+
+// ─── PEDIR NOTIFICACIONES ────────────────────────────
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
 </script>
+
+{% if show_changelog %}
+<!-- MODAL CHANGELOG para portal -->
+<div class="modal fade" id="changelogModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px; border:none; overflow:hidden">
+      <div style="background:linear-gradient(135deg,#2D1000,#7B3A10); padding:1.5rem 1.5rem 1rem; color:#F5E6CC">
+        <div style="font-family:'Dancing Script',cursive; font-size:2rem; font-weight:700; line-height:1">oggi</div>
+        <div style="font-size:.7rem; opacity:.65; letter-spacing:.12em">officina gelato gusto italiano</div>
+        <h5 class="mt-2 mb-0 fw-bold" style="color:#fff">
+          <i class="bi bi-stars me-2"></i>Novedades — v{{ app_version }}
+        </h5>
+        <div style="font-size:.75rem; opacity:.6; margin-top:.2rem">{{ changelog.fecha }}</div>
+      </div>
+      <div class="modal-body pt-3 pb-2">
+        <ul class="list-unstyled mb-0">
+          {% for c in changelog.cambios %}
+          <li class="d-flex gap-2 mb-2">
+            <span style="color:#7B3A10; font-size:1rem; flex-shrink:0">✦</span>
+            <span style="font-size:.9rem; color:#2D1000">{{ c }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-primary w-100 fw-bold"
+                style="background:#7B3A10; border:none; border-radius:10px"
+                data-bs-dismiss="modal">
+          ¡Entendido!
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const m = new bootstrap.Modal(document.getElementById('changelogModal'));
+    setTimeout(() => m.show(), 800);
+  });
+</script>
+{% endif %}
 </body>
 </html>

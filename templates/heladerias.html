@@ -28,6 +28,9 @@
                   {% if h.activo %}Desactivar{% else %}Activar{% endif %}
                 </button>
               </form>
+              <a href="{{ url_for('heladeria_catalogo', hid=h.id) }}" class="btn btn-xs btn-outline-secondary ms-1" title="Gestionar qué puede pedir este local">
+                <i class="bi bi-list-check me-1"></i>Catálogo
+              </a>
               <a href="{{ url_for('heladeria_portal', hid=h.id) }}" class="btn btn-xs btn-outline-primary ms-1">
                 Ver portal
               </a>

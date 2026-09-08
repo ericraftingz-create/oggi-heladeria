@@ -40,6 +40,41 @@
     .flash-area { position: fixed; top: 1rem; right: 1rem; z-index: 999; min-width: 280px; }
     footer { position: fixed; bottom: .75rem; left: 0; right: 0; text-align: center;
              font-size: .68rem; color: #b08060; font-style: italic; }
+
+    /* ── ANIMACIONES DE ENTRADA ── */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes logoGlow {
+      0%, 100% { text-shadow: 0 0 0px rgba(123,58,16,0); }
+      50%       { text-shadow: 0 0 18px rgba(123,58,16,.35); }
+    }
+    .login-logo {
+      animation: fadeSlideUp .5s cubic-bezier(.22,.68,0,1.2) forwards;
+    }
+    .login-card {
+      animation: fadeSlideUp .55s .15s cubic-bezier(.22,.68,0,1.2) both;
+    }
+    .logo-text {
+      animation: logoGlow 3s 1s ease-in-out infinite;
+    }
+    footer {
+      animation: fadeIn .8s .4s both;
+    }
+
+    /* Fondo con patrón sutil */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 60% 10%, rgba(123,58,16,.07) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 80%, rgba(160,82,45,.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -55,13 +90,13 @@
 </div>
 
 <div style="max-width: 420px; width: 100%; padding: 1rem;">
-  <div class="text-center mb-4">
+  <div class="text-center mb-4 login-logo">
     <div class="logo-text">oggi</div>
     <hr style="border-color: var(--brown); opacity: .2; width: 50px; margin: .4rem auto;">
     <div class="logo-sub">officina gelato gusto italiano</div>
   </div>
 
-  <div class="card-box p-4">
+  <div class="card-box p-4 login-card">
 
     <!-- TABS -->
     <div class="d-flex justify-content-center gap-2 mb-4">

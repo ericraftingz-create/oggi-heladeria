@@ -52,6 +52,7 @@
               <label class="form-label fw-semibold">Tipo</label>
               <select name="tipo" id="tipoSel" class="form-select">
                 <option value="reserva" {% if prefill.tipo == 'reserva' %}selected{% endif %}>🍦 Reserva</option>
+                <option value="helado"  {% if prefill.tipo == 'helado'  %}selected{% endif %}>🍨 Helado</option>
                 <option value="base"    {% if prefill.tipo == 'base'    %}selected{% endif %}>🧪 Base</option>
                 <option value="insumo"  {% if prefill.tipo == 'insumo'  %}selected{% endif %}>📦 Insumo</option>
               </select>
@@ -61,7 +62,12 @@
               <input type="number" name="cantidad" id="cantInput" class="form-control"
                      min="0.1" step="any" value="{{ prefill.cantidad }}">
             </div>
-            <div class="col-3">
+            <div class="col-2" id="litrosWrap">
+              <label class="form-label fw-semibold">Litros</label>
+              <input type="number" name="litros" id="litrosInput" class="form-control"
+                     min="0.1" step="0.5" value="4" title="Litros que contiene el tarro">
+            </div>
+            <div class="col-2">
               <label class="form-label fw-semibold">Nº etiquetas</label>
               <input type="number" name="copias" id="copiasInput" class="form-control"
                      min="1" step="1" value="{{ prefill.cantidad|int if prefill.cantidad else 1 }}">
@@ -175,21 +181,26 @@ document.getElementById('tipoSel').addEventListener('change', function() {
 
 function updateCantLabel() {
   const tipo = document.getElementById('tipoSel').value;
-  const labels = { reserva: 'Cantidad (tarros)', base: 'Cantidad (kg)', insumo: 'Cantidad (kg/u)' };
+  const labels = { reserva: 'Cantidad (tarros)', helado: 'Cantidad (tarros)', base: 'Cantidad (kg)', insumo: 'Cantidad (kg/u)' };
   document.getElementById('cantLabel').textContent = labels[tipo] || 'Cantidad';
+  // Mostrar campo litros solo para reserva/helado
+  const showLitros = (tipo === 'reserva' || tipo === 'helado');
+  document.getElementById('litrosWrap').style.display = showLitros ? '' : 'none';
 }
 
 function updatePreview() {
   const nombre = document.getElementById('nombreInput').value || 'Producto';
   const tipo   = document.getElementById('tipoSel').value.toUpperCase();
   const cant   = parseFloat(document.getElementById('cantInput').value) || 1;
+  const litros = parseFloat(document.getElementById('litrosInput').value) || 4;
   const fecha  = document.querySelector('[name=fecha]').value;
   const hora   = document.querySelector('[name=hora]').value;
   const vence  = document.getElementById('fechaVenc').value;
   const local  = document.querySelector('[name=local]').value;
 
   let neto;
-  if (tipo === 'RESERVA') neto = `1 tarro (4 L)`;
+  if (tipo === 'RESERVA' || tipo === 'HELADO') neto = `1 tarro (${litros} L)`;
+  else if (tipo === 'INSUMO') neto = `${cant} u/kg`;
   else neto = `${cant} kg`;
 
   document.getElementById('pvNombre').textContent = nombre;

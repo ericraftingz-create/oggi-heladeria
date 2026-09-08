@@ -24,9 +24,10 @@
       <div class="mb-3">
         <label class="form-label fw-semibold">Rol</label>
         <select name="rol" class="form-select" id="rolEdit" onchange="toggleHel(this)">
-          <option value="superadmin" {% if usuario.rol == 'superadmin' %}selected{% endif %}>superadmin</option>
-          <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>admin</option>
-          <option value="cliente" {% if usuario.rol == 'cliente' %}selected{% endif %}>cliente</option>
+          <option value="superadmin" {% if usuario.rol == 'superadmin' %}selected{% endif %}>superadmin — acceso total</option>
+          <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>admin — producción y pedidos</option>
+          <option value="cliente" {% if usuario.rol == 'cliente' %}selected{% endif %}>cliente — puede pedir</option>
+          <option value="visor" {% if usuario.rol == 'visor' %}selected{% endif %}>visor — solo ve stock</option>
         </select>
       </div>
       <div class="mb-3" id="helRow">

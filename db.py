@@ -346,4 +346,43 @@ def migrate_db():
             DROP TABLE pedido_items_old;
         """)
         conn.commit()
+    # Migración: ampliar rol CHECK para incluir 'visor'
+    schema_u = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='usuarios'"
+    ).fetchone()
+    if schema_u and "'visor'" not in schema_u[0]:
+        conn.executescript("""
+            ALTER TABLE usuarios RENAME TO usuarios_old;
+            CREATE TABLE usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                nombre TEXT DEFAULT '',
+                rol TEXT NOT NULL DEFAULT 'admin' CHECK(rol IN ('superadmin','admin','cliente','visor')),
+                heladeria_id INTEGER REFERENCES heladerias(id),
+                activo INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO usuarios SELECT * FROM usuarios_old;
+            DROP TABLE usuarios_old;
+        """)
+        conn.commit()
+    # Tabla catálogo por heladería (blocklist: qué sabores/bases NO puede pedir cada local)
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS heladeria_sabor_bloqueado (
+            heladeria_id INTEGER NOT NULL,
+            sabor_id     INTEGER NOT NULL,
+            PRIMARY KEY (heladeria_id, sabor_id),
+            FOREIGN KEY (heladeria_id) REFERENCES heladerias(id) ON DELETE CASCADE,
+            FOREIGN KEY (sabor_id)    REFERENCES sabores(id)    ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS heladeria_base_bloqueada (
+            heladeria_id INTEGER NOT NULL,
+            base_id      INTEGER NOT NULL,
+            PRIMARY KEY (heladeria_id, base_id),
+            FOREIGN KEY (heladeria_id) REFERENCES heladerias(id) ON DELETE CASCADE,
+            FOREIGN KEY (base_id)     REFERENCES bases(id)       ON DELETE CASCADE
+        );
+    """)
+    conn.commit()
     conn.close()

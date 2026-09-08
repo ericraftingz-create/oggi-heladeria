@@ -253,8 +253,14 @@ def pdf_etiqueta(prod, usuario, copias=1):
         vence = f'{v3}/{v2}/{v1}'
     local_dest   = _g('local', '')
 
-    if tipo == 'RESERVA':
-        neto = f'1 tarro (4 L)'
+    litros_raw = _g('litros', 4)
+    try: litros = float(litros_raw)
+    except: litros = 4.0
+    # Mostrar sin decimales si es entero
+    litros_str = str(int(litros)) if litros == int(litros) else str(litros)
+
+    if tipo in ('RESERVA', 'HELADO'):
+        neto = f'1 tarro ({litros_str} L)'
     elif tipo == 'INSUMO':
         neto = f'{cantidad} u/kg'
     else:
@@ -345,21 +351,22 @@ def pdf_etiqueta(prod, usuario, copias=1):
 
 def pdf_remito_termico(pedido, items):
     """
-    Remito mini para impresora térmica 80mm — guía de despacho.
-    Portrait, 80mm ancho, alto variable según items.
+    Guía de despacho para impresora térmica 80mm.
+    Portrait, ancho exacto 80mm, alto variable.
     """
     import io
-    W = 72  # ancho útil dentro de los márgenes
+    M = 3    # margen
+    W = 80 - M * 2  # ancho útil = 74mm
 
-    # Calcular alto necesario: cabecera ~40mm + 8mm por item + pie ~15mm
     n = len(items) if items else 1
-    H = max(80, 45 + n * 10 + 20)
+    # Cabecera ~38mm + 8mm/item + pie 14mm
+    H = max(70, 38 + n * 9 + 14)
 
     class RemitoPDF(FPDF):
         pass
 
     p = RemitoPDF(orientation='P', unit='mm', format=(80, H))
-    p.set_margins(4, 4, 4)
+    p.set_margins(M, M, M)
     p.set_auto_page_break(False)
     p.add_page()
     p.set_draw_color(0, 0, 0)
@@ -367,60 +374,55 @@ def pdf_remito_termico(pedido, items):
 
     # ── Encabezado ────────────────────────────────────────────
     p.set_fill_color(0, 0, 0)
-    p.rect(0, 0, 80, 12, 'F')
-    p.set_font('Helvetica', 'B', 13)
+    p.rect(0, 0, 80, 10, 'F')
+    p.set_font('Helvetica', 'B', 12)
     p.set_text_color(255, 255, 255)
-    p.set_xy(4, 2)
-    p.cell(40, 8, 'OGGI', align='L')
-    p.set_font('Helvetica', '', 7)
-    p.set_xy(4, 8)
-    p.cell(72, 0, 'officina gelato gusto italiano', align='L')
+    p.set_xy(M, 1.5)
+    p.cell(W, 7, 'OGGI  officina gelato', align='C')
     p.set_text_color(0, 0, 0)
 
     # ── Info pedido ───────────────────────────────────────────
-    y = 15
-    p.set_font('Helvetica', 'B', 9)
-    p.set_xy(4, y)
-    p.cell(W, 5, f'DESPACHO PEDIDO #{pedido["id"]}', align='C')
+    y = 12
+    p.set_font('Helvetica', 'B', 8.5)
+    p.set_xy(M, y)
+    p.cell(W, 5, f'DESPACHO  #{ pedido["id"] }', align='C')
     y += 6
-    p.set_font('Helvetica', '', 7.5)
-    p.set_xy(4, y)
-    p.cell(W, 4, f'Para: {pedido["heladeria_nombre"]}', align='L')
-    y += 5
-    p.set_xy(4, y)
-    p.cell(W, 4, f'Fecha: {datetime.now().strftime("%d/%m/%Y  %H:%M")}', align='L')
+    p.set_font('Helvetica', '', 7)
+    p.set_xy(M, y)
+    p.cell(W, 4, f'Para: { pedido["heladeria_nombre"] }')
+    y += 4.5
+    p.set_xy(M, y)
+    p.cell(W, 4, f'Fecha: { datetime.now().strftime("%d/%m/%Y  %H:%M") }')
     y += 5
 
-    # ── Línea separadora ──────────────────────────────────────
-    p.line(4, y, 76, y)
-    y += 2
+    # ── Línea + cabecera items ────────────────────────────────
+    p.line(M, y, 80 - M, y);  y += 1.5
+    p.set_font('Helvetica', 'B', 7)
+    p.set_xy(M, y)
+    p.cell(44, 5, 'PRODUCTO')
+    p.cell(16, 5, 'CANT', align='C')
+    p.cell(10, 5, 'OK', align='C')
+    y += 5
+    p.line(M, y, 80 - M, y);  y += 1
 
     # ── Items ─────────────────────────────────────────────────
-    p.set_font('Helvetica', 'B', 7.5)
-    p.set_xy(4, y)
-    p.cell(48, 5, 'PRODUCTO', border=0)
-    p.cell(12, 5, 'CANT', align='C', border=0)
-    p.cell(12, 5, 'OK', align='C', border=0)
-    y += 5
-    p.line(4, y, 76, y)
-    y += 1
-
-    p.set_font('Helvetica', '', 8)
+    p.set_font('Helvetica', '', 7.5)
     for item in (items or []):
-        nombre = item['sabor_nombre'] or '—'
+        try:
+            nombre = item['sabor_nombre'] or '—'
+        except Exception:
+            nombre = '—'
         cant = item['cantidad']
         try: unidad = item['unidad'] or 'tarro'
         except: unidad = 'tarro'
-        cant_str = f"{int(cant) if float(cant) == int(cant) else cant} {unidad}"
-        p.set_xy(4, y)
-        # truncar nombre si es largo
-        if len(nombre) > 22:
-            nombre = nombre[:21] + '…'
-        p.cell(48, 6, nombre)
-        p.cell(12, 6, cant_str, align='C')
-        # casilla de check para marcar a mano
-        p.rect(68, y + 1, 5, 4)
-        y += 6
+        cant_f = int(cant) if float(cant) == int(cant) else cant
+        cant_str = f'{cant_f} {unidad}'
+        if len(nombre) > 24: nombre = nombre[:23] + '.'
+        p.set_xy(M, y)
+        p.cell(44, 7, nombre)
+        p.cell(16, 7, cant_str, align='C')
+        p.rect(66, y + 1.5, 5, 4)   # casilla check manual
+        y += 7
 
     # ── Línea separadora ──────────────────────────────────────
     y += 1
@@ -431,8 +433,13 @@ def pdf_remito_termico(pedido, items):
     p.set_font('Helvetica', '', 6.5)
     p.set_xy(4, y)
     p.cell(W, 4, 'Firma recepción: ___________________', align='L')
-    y += 6
-    p.set_xy(4, y)
+    # ── Pie ───────────────────────────────────────────────────
+    p.line(M, y, 80 - M, y);  y += 2
+    p.set_font('Helvetica', '', 6.5)
+    p.set_xy(M, y)
+    p.cell(W, 4, 'Firma recepcion: ___________________')
+    y += 5
+    p.set_xy(M, y)
     p.cell(W, 4, 'OGGI officina gelato gusto italiano', align='C')
 
     buf = io.BytesIO()
