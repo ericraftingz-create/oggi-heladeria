@@ -169,6 +169,10 @@
   <a href="{{ url_for('historial') }}" class="nav-link {% if request.endpoint == 'historial' %}active{% endif %}">
     <i class="bi bi-clock-history"></i> Historial
   </a>
+  <a href="{{ url_for('cierre_dia') }}" class="nav-link {% if request.endpoint == 'cierre_dia' %}active{% endif %}"
+     style="{% if request.endpoint != 'cierre_dia' %}color:rgba(245,230,204,.9){% endif %}">
+    <i class="bi bi-moon-stars"></i> Cierre del día
+  </a>
 
   {% if cu.is_superadmin %}
   <div class="nav-section">Administración</div>

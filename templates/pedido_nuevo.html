@@ -115,5 +115,45 @@
 
 <footer>Desarrollado por Erick Espina · Sr. Finley · OGGI</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+{% if sabores_nuevos %}
+<!-- Modal sabores nuevos -->
+<div class="modal fade" id="modalNuevos" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:14px; overflow:hidden; border:none">
+      <div style="background:linear-gradient(135deg,#2D1000,#7B3A10); padding:1.2rem 1.5rem .8rem; color:#F5E6CC">
+        <div style="font-size:1.5rem">🍦 ¡Novedades en el menú!</div>
+        <div style="font-size:.8rem; opacity:.7; margin-top:.2rem">
+          Desde tu último pedido se agregaron nuevos sabores
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 fw-semibold" style="color:#2D1000">Sabores nuevos disponibles:</p>
+        <ul class="list-unstyled mb-0">
+          {% for s in sabores_nuevos %}
+          <li class="d-flex align-items-center gap-2 mb-2">
+            <span style="color:#7B3A10; font-size:1.1rem">✦</span>
+            <span class="fw-bold" style="color:#2D1000">{{ s.nombre }}</span>
+            <span class="badge bg-success ms-auto">Nuevo</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn w-100 fw-bold"
+                style="background:#7B3A10; color:#fff; border-radius:8px"
+                data-bs-dismiss="modal">
+          ¡Entendido, voy a pedir!
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    new bootstrap.Modal(document.getElementById('modalNuevos')).show();
+  });
+</script>
+{% endif %}
 </body>
 </html>

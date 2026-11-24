@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Cierre del Día{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h1><i class="bi bi-moon-stars me-2"></i>Cierre del Día</h1>
+    <small class="text-muted">Registrá lo que hiciste y el estado de los refrigeradores antes de apagar.</small>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- FORMULARIO -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-pencil-square me-2"></i>Nuevo cierre</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Fecha</label>
+            <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+          </div>
+
+          <!-- Sugerencia automática de producción -->
+          {% if prod_hoy %}
+          <div class="alert alert-info py-2 small mb-2">
+            <strong>Producción de hoy detectada:</strong>
+            {% for p in prod_hoy %}
+              {{ p.nombre }} ×{{ p.cantidad | int }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            <button type="button" class="btn btn-xs btn-outline-primary ms-2" onclick="cargarProd()">
+              Cargar automático
+            </button>
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">¿Qué produje hoy?</label>
+            <textarea name="produccion_hoy" id="prodText" class="form-control" rows="4"
+                      placeholder="Ej: 3 mascarpone, 2 pulcinella, 1 lote de base latte..."></textarea>
+          </div>
+
+          <!-- Stock actual sugerido -->
+          {% if stock %}
+          <div class="alert alert-secondary py-2 small mb-2">
+            <strong>Stock actual en inventario:</strong>
+            {% for s in stock %}
+              {{ s.nombre }} ({{ s.qty | int }}){% if not loop.last %}, {% endif %}
+            {% endfor %}
+            <button type="button" class="btn btn-xs btn-outline-secondary ms-2" onclick="cargarStock()">
+              Cargar en refrigerador
+            </button>
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Estado del refrigerador / mantecadora</label>
+            <textarea name="estado_refrigeracion" id="refriText" class="form-control" rows="4"
+                      placeholder="Ej: Refri 1: mascarpone x3, pulcinella x2. Refri 2: bases..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notas adicionales</label>
+            <input type="text" name="notas" class="form-control"
+                   placeholder="Algo que recordar para mañana, insumos por pedir, etc.">
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 fw-bold">
+            <i class="bi bi-moon-stars me-2"></i>Guardar cierre del día
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2"></i>Últimos cierres</div>
+      <div class="card-body p-0" style="max-height:620px; overflow-y:auto">
+        {% for c in cierres %}
+        <div class="p-3 border-bottom">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-bold" style="color:var(--oggi-dark)">{{ c.fecha }}</span>
+            <span class="text-muted" style="font-size:.75rem">{{ c.usuario }}</span>
+          </div>
+          {% if c.produccion_hoy %}
+          <div class="mb-1">
+            <span class="badge bg-success me-1">Producción</span>
+            <span style="font-size:.82rem">{{ c.produccion_hoy }}</span>
+          </div>
+          {% endif %}
+          {% if c.estado_refrigeracion %}
+          <div class="mb-1">
+            <span class="badge bg-info text-dark me-1">Refri</span>
+            <span style="font-size:.82rem">{{ c.estado_refrigeracion }}</span>
+          </div>
+          {% endif %}
+          {% if c.notas %}
+          <div>
+            <span class="badge bg-warning text-dark me-1">Nota</span>
+            <span style="font-size:.82rem; font-style:italic">{{ c.notas }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">Sin cierres registrados aún.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Carga la producción de hoy automáticamente
+function cargarProd() {
+  const items = [
+    {% for p in prod_hoy %}"{{ p.nombre }} ×{{ p.cantidad | int }}"{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+  document.getElementById('prodText').value = items.join(', ');
+}
+// Carga el stock actual en el campo refrigerador
+function cargarStock() {
+  const items = [
+    {% for s in stock %}"{{ s.nombre }} ({{ s.qty | int }} tarros)"{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+  document.getElementById('refriText').value = items.join('\n');
+}
+</script>
+{% endblock %}

@@ -3,7 +3,11 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import os, json
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime as _dt, timezone as _tz
+
+def now_cl():
+    """Hora actual en zona horaria Chile (UTC-3)."""
+    return _dt.now(_tz(timedelta(hours=-3)))
 import webbrowser, threading
 
 from db import get_db, init_db, migrate_db
@@ -1078,7 +1082,7 @@ def etiqueta_custom():
             'tipo':              request.form.get('tipo', 'reserva'),
             'litros':            float(request.form.get('litros') or 4),
             'fecha':             request.form.get('fecha') or date.today().isoformat(),
-            'hora':              request.form.get('hora') or dt.now().strftime('%H:%M'),
+            'hora':              request.form.get('hora') or now_cl().strftime('%H:%M'),
             'fecha_vencimiento': request.form.get('fecha_vencimiento') or '',
             'local':             request.form.get('local', ''),
         }
@@ -1091,7 +1095,7 @@ def etiqueta_custom():
         from flask import Response
         return Response(pdf_bytes, mimetype='application/pdf',
                         headers={'Content-Disposition': 'inline; filename=etiqueta_custom.pdf'})
-    ahora = dt.now()
+    ahora = now_cl()
     # Pre-fill desde GET (ej: desde bases.html)
     prefill = {
         'nombre':   request.args.get('nombre', ''),
@@ -1537,8 +1541,23 @@ def heladeria_pedido(hid):
           AND b.id NOT IN (SELECT base_id FROM heladeria_base_bloqueada WHERE heladeria_id=?)
         ORDER BY b.nombre
     """, (hid,)).fetchall()
+    # Detectar sabores nuevos desde el último pedido de este local
+    ultimo_pedido = db.execute(
+        "SELECT created_at FROM pedidos_internos WHERE heladeria_id=? ORDER BY created_at DESC LIMIT 1",
+        (hid,)
+    ).fetchone()
+    sabores_nuevos = []
+    if ultimo_pedido and ultimo_pedido['created_at']:
+        sabores_nuevos = db.execute("""
+            SELECT nombre FROM sabores
+            WHERE created_at > ?
+              AND disponibilidad != 'no_disponible'
+              AND id NOT IN (SELECT sabor_id FROM heladeria_sabor_bloqueado WHERE heladeria_id=?)
+            ORDER BY nombre
+        """, (ultimo_pedido['created_at'], hid)).fetchall()
     db.close()
-    return render_template('pedido_nuevo.html', heladeria=heladeria, sabores=sabores, bases=bases_pedibles)
+    return render_template('pedido_nuevo.html', heladeria=heladeria, sabores=sabores,
+                           bases=bases_pedibles, sabores_nuevos=sabores_nuevos)
 
 @app.route('/heladeria/<int:hid>/pedido/<int:id>/confirmacion')
 @login_required
@@ -1767,6 +1786,53 @@ def historial():
         data = []
     db.close()
     return render_template('historial.html', tab=tab, data=data)
+
+# ─────────────────────────────────────────────
+# CIERRE DEL DÍA
+# ─────────────────────────────────────────────
+
+@app.route('/cierre-dia', methods=['GET', 'POST'])
+@admin_required
+def cierre_dia():
+    db = get_db()
+    if request.method == 'POST':
+        fecha = request.form.get('fecha') or date.today().isoformat()
+        usuario = session.get('nombre') or session.get('username', '')
+        produccion_hoy = request.form.get('produccion_hoy', '').strip()
+        estado_refri   = request.form.get('estado_refrigeracion', '').strip()
+        notas          = request.form.get('notas', '').strip()
+        db.execute(
+            "INSERT INTO cierre_dia (fecha, usuario, produccion_hoy, estado_refrigeracion, notas) VALUES (?,?,?,?,?)",
+            (fecha, usuario, produccion_hoy, estado_refri, notas)
+        )
+        db.commit()
+        flash('Cierre del día guardado correctamente.', 'success')
+        db.close()
+        return redirect(url_for('cierre_dia'))
+    # Cargar historial de cierres
+    cierres = db.execute(
+        "SELECT * FROM cierre_dia ORDER BY fecha DESC, created_at DESC LIMIT 30"
+    ).fetchall()
+    # Producción de hoy como sugerencia
+    prod_hoy = db.execute("""
+        SELECT s.nombre, p.cantidad, p.fecha
+        FROM produccion p JOIN sabores s ON s.id=p.sabor_id
+        WHERE p.fecha = ?
+        ORDER BY p.id DESC
+    """, (date.today().isoformat(),)).fetchall()
+    # Stock actual de reservas
+    stock = db.execute("""
+        SELECT s.nombre, COALESCE(ir.cantidad,0) as qty
+        FROM sabores s LEFT JOIN inventario_reservas ir ON ir.sabor_id=s.id
+        WHERE COALESCE(ir.cantidad,0) > 0
+        ORDER BY s.nombre
+    """).fetchall()
+    db.close()
+    return render_template('cierre_dia.html',
+                           cierres=cierres,
+                           prod_hoy=prod_hoy,
+                           stock=stock,
+                           hoy=date.today().isoformat())
 
 # ─────────────────────────────────────────────
 # GESTIÓN HELADERÍAS

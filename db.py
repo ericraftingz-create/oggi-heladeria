@@ -385,4 +385,23 @@ def migrate_db():
         );
     """)
     conn.commit()
+    # Migraciones adicionales
+    for sql in [
+        # created_at en sabores (para detectar sabores nuevos)
+        "ALTER TABLE sabores ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        # Tabla cierre del día
+        """CREATE TABLE IF NOT EXISTS cierre_dia (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL,
+            usuario TEXT DEFAULT '',
+            produccion_hoy TEXT DEFAULT '',
+            estado_refrigeracion TEXT DEFAULT '',
+            notas TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+    ]:
+        try:
+            conn.execute(sql); conn.commit()
+        except Exception:
+            pass
     conn.close()

@@ -355,17 +355,23 @@ def pdf_remito_termico(pedido, items):
     Portrait, ancho exacto 80mm, alto variable.
     """
     import io
-    M = 3    # margen
-    W = 80 - M * 2  # ancho útil = 74mm
+    M = 2    # margen
+    PW = 72  # ancho papel 72mm
+    W = PW - M * 2  # ancho útil
 
     n = len(items) if items else 1
-    # Cabecera ~38mm + 8mm/item + pie 14mm
-    H = max(70, 38 + n * 9 + 14)
+    # Alto variable: pocos ítems → más alto (más espacio), muchos → compacto
+    if n <= 3:
+        H = 140
+    elif n <= 7:
+        H = 120
+    else:
+        H = max(100, 36 + n * 9 + 14)
 
     class RemitoPDF(FPDF):
         pass
 
-    p = RemitoPDF(orientation='P', unit='mm', format=(80, H))
+    p = RemitoPDF(orientation='P', unit='mm', format=(PW, H))
     p.set_margins(M, M, M)
     p.set_auto_page_break(False)
     p.add_page()
@@ -374,8 +380,8 @@ def pdf_remito_termico(pedido, items):
 
     # ── Encabezado ────────────────────────────────────────────
     p.set_fill_color(0, 0, 0)
-    p.rect(0, 0, 80, 10, 'F')
-    p.set_font('Helvetica', 'B', 12)
+    p.rect(0, 0, PW, 10, 'F')
+    p.set_font('Helvetica', 'B', 11)
     p.set_text_color(255, 255, 255)
     p.set_xy(M, 1.5)
     p.cell(W, 7, 'OGGI  officina gelato', align='C')
@@ -383,7 +389,7 @@ def pdf_remito_termico(pedido, items):
 
     # ── Info pedido ───────────────────────────────────────────
     y = 12
-    p.set_font('Helvetica', 'B', 8.5)
+    p.set_font('Helvetica', 'B', 8)
     p.set_xy(M, y)
     p.cell(W, 5, f'DESPACHO  #{ pedido["id"] }', align='C')
     y += 6
@@ -392,49 +398,49 @@ def pdf_remito_termico(pedido, items):
     p.cell(W, 4, f'Para: { pedido["heladeria_nombre"] }')
     y += 4.5
     p.set_xy(M, y)
-    p.cell(W, 4, f'Fecha: { datetime.now().strftime("%d/%m/%Y  %H:%M") }')
+    from datetime import timezone, timedelta
+    now_cl = datetime.now(timezone(timedelta(hours=-3)))
+    p.cell(W, 4, f'Fecha: { now_cl.strftime("%d/%m/%Y  %H:%M") }')
     y += 5
 
     # ── Línea + cabecera items ────────────────────────────────
-    p.line(M, y, 80 - M, y);  y += 1.5
+    p.line(M, y, PW - M, y);  y += 1.5
     p.set_font('Helvetica', 'B', 7)
     p.set_xy(M, y)
-    p.cell(44, 5, 'PRODUCTO')
-    p.cell(16, 5, 'CANT', align='C')
-    p.cell(10, 5, 'OK', align='C')
+    col_prod = W - 20
+    p.cell(col_prod, 5, 'PRODUCTO')
+    p.cell(14, 5, 'CANT', align='C')
+    p.cell(6, 5, 'OK', align='C')
     y += 5
-    p.line(M, y, 80 - M, y);  y += 1
+    p.line(M, y, PW - M, y);  y += 1
 
     # ── Items ─────────────────────────────────────────────────
-    p.set_font('Helvetica', '', 7.5)
+    p.set_font('Helvetica', '', 7)
     for item in (items or []):
         try:
-            nombre = item['sabor_nombre'] or '—'
+            nombre = item['sabor_nombre'] or '-'
         except Exception:
-            nombre = '—'
+            nombre = '-'
         cant = item['cantidad']
         try: unidad = item['unidad'] or 'tarro'
         except: unidad = 'tarro'
         cant_f = int(cant) if float(cant) == int(cant) else cant
         cant_str = f'{cant_f} {unidad}'
-        if len(nombre) > 24: nombre = nombre[:23] + '.'
+        max_chars = int(col_prod / 1.9)
+        if len(nombre) > max_chars: nombre = nombre[:max_chars-1] + '.'
         p.set_xy(M, y)
-        p.cell(44, 7, nombre)
-        p.cell(16, 7, cant_str, align='C')
-        p.rect(66, y + 1.5, 5, 4)   # casilla check manual
+        p.cell(col_prod, 7, nombre)
+        p.cell(14, 7, cant_str, align='C')
+        p.rect(PW - M - 5, y + 1.5, 4, 4)   # casilla check manual
         y += 7
 
     # ── Línea separadora ──────────────────────────────────────
     y += 1
-    p.line(4, y, 76, y)
+    p.line(M, y, PW - M, y)
     y += 3
 
     # ── Pie ───────────────────────────────────────────────────
-    p.set_font('Helvetica', '', 6.5)
-    p.set_xy(4, y)
-    p.cell(W, 4, 'Firma recepción: ___________________', align='L')
-    # ── Pie ───────────────────────────────────────────────────
-    p.line(M, y, 80 - M, y);  y += 2
+    p.line(M, y, PW - M, y);  y += 2
     p.set_font('Helvetica', '', 6.5)
     p.set_xy(M, y)
     p.cell(W, 4, 'Firma recepcion: ___________________')
