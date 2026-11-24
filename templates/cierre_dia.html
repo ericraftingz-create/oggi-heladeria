@@ -1,130 +1,154 @@
 {% extends "base.html" %}
 {% block title %}Cierre del Día{% endblock %}
+{% block head %}
+<style>
+  .sabor-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .6rem 1rem; border-bottom: 1px solid #f0e0cc; background: #fff;
+  }
+  .sabor-row:last-child { border-bottom: none; }
+  .sabor-nombre { font-weight: 600; color: var(--oggi-dark); font-size: .95rem; }
+  .sabor-hint   { font-size: .75rem; color: #8B6347; }
+  .qty-wrap     { display: flex; align-items: center; gap: .4rem; }
+  .qty-num {
+    width: 72px; text-align: center; font-size: 1.3rem; font-weight: 700;
+    border: 2px solid #e0ccb8; border-radius: 8px; background: var(--oggi-light);
+    color: var(--oggi-dark); padding: .3rem .4rem;
+  }
+  .qty-num:focus { border-color: var(--oggi-brown); outline: none; background: #fff; }
+  .qty-btn {
+    width: 38px; height: 38px; border-radius: 8px; border: 2px solid #e0ccb8;
+    background: #fff; font-size: 1.3rem; font-weight: 700; color: var(--oggi-brown);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    user-select: none; transition: background .1s;
+  }
+  .qty-btn:active { background: var(--oggi-beige); }
+  .section-label {
+    background: var(--oggi-dark); color: #F5E6CC;
+    padding: .5rem 1rem; font-weight: 700; font-size: .85rem;
+    letter-spacing: .05em;
+  }
+  .cierre-card { font-size: .82rem; border-bottom: 1px solid #f0e0cc; padding: .75rem 1rem; }
+  .cierre-card:last-child { border-bottom: none; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header d-flex align-items-center justify-content-between">
   <div>
     <h1><i class="bi bi-moon-stars me-2"></i>Cierre del Día</h1>
-    <small class="text-muted">Registrá lo que hiciste y el estado de los refrigeradores antes de apagar.</small>
+    <small class="text-muted">Ponés el número — sin escribir nada.</small>
   </div>
+  <input type="date" id="fechaDisplay" value="{{ hoy }}"
+         class="form-control" style="width:160px">
 </div>
 
-<div class="row g-3">
-  <!-- FORMULARIO -->
-  <div class="col-lg-7">
-    <div class="card">
-      <div class="card-header fw-semibold"><i class="bi bi-pencil-square me-2"></i>Nuevo cierre</div>
-      <div class="card-body">
-        <form method="post">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Fecha</label>
-            <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
-          </div>
+<form method="post" id="cierreForm">
+  <input type="hidden" name="fecha" id="fechaHidden" value="{{ hoy }}">
 
-          <!-- Sugerencia automática de producción -->
-          {% if prod_hoy %}
-          <div class="alert alert-info py-2 small mb-2">
-            <strong>Producción de hoy detectada:</strong>
-            {% for p in prod_hoy %}
-              {{ p.nombre }} ×{{ p.cantidad | int }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
-            <button type="button" class="btn btn-xs btn-outline-primary ms-2" onclick="cargarProd()">
-              Cargar automático
-            </button>
-          </div>
-          {% endif %}
+  <div class="row g-3">
+    <!-- COLUMNA PRINCIPAL -->
+    <div class="col-lg-8">
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold">¿Qué produje hoy?</label>
-            <textarea name="produccion_hoy" id="prodText" class="form-control" rows="4"
-                      placeholder="Ej: 3 mascarpone, 2 pulcinella, 1 lote de base latte..."></textarea>
-          </div>
-
-          <!-- Stock actual sugerido -->
-          {% if stock %}
-          <div class="alert alert-secondary py-2 small mb-2">
-            <strong>Stock actual en inventario:</strong>
-            {% for s in stock %}
-              {{ s.nombre }} ({{ s.qty | int }}){% if not loop.last %}, {% endif %}
-            {% endfor %}
-            <button type="button" class="btn btn-xs btn-outline-secondary ms-2" onclick="cargarStock()">
-              Cargar en refrigerador
-            </button>
-          </div>
-          {% endif %}
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Estado del refrigerador / mantecadora</label>
-            <textarea name="estado_refrigeracion" id="refriText" class="form-control" rows="4"
-                      placeholder="Ej: Refri 1: mascarpone x3, pulcinella x2. Refri 2: bases..."></textarea>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Notas adicionales</label>
-            <input type="text" name="notas" class="form-control"
-                   placeholder="Algo que recordar para mañana, insumos por pedir, etc.">
-          </div>
-
-          <button type="submit" class="btn btn-primary w-100 fw-bold">
-            <i class="bi bi-moon-stars me-2"></i>Guardar cierre del día
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- HISTORIAL -->
-  <div class="col-lg-5">
-    <div class="card">
-      <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2"></i>Últimos cierres</div>
-      <div class="card-body p-0" style="max-height:620px; overflow-y:auto">
-        {% for c in cierres %}
-        <div class="p-3 border-bottom">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="fw-bold" style="color:var(--oggi-dark)">{{ c.fecha }}</span>
-            <span class="text-muted" style="font-size:.75rem">{{ c.usuario }}</span>
-          </div>
-          {% if c.produccion_hoy %}
-          <div class="mb-1">
-            <span class="badge bg-success me-1">Producción</span>
-            <span style="font-size:.82rem">{{ c.produccion_hoy }}</span>
-          </div>
-          {% endif %}
-          {% if c.estado_refrigeracion %}
-          <div class="mb-1">
-            <span class="badge bg-info text-dark me-1">Refri</span>
-            <span style="font-size:.82rem">{{ c.estado_refrigeracion }}</span>
-          </div>
-          {% endif %}
-          {% if c.notas %}
+      <!-- PRODUCCIÓN HOY -->
+      <div class="card mb-3">
+        <div class="section-label"><i class="bi bi-cup-hot me-2"></i>¿Qué produje hoy?</div>
+        {% for s in sabores %}
+        <div class="sabor-row">
           <div>
-            <span class="badge bg-warning text-dark me-1">Nota</span>
-            <span style="font-size:.82rem; font-style:italic">{{ c.notas }}</span>
+            <div class="sabor-nombre">{{ s.nombre }}</div>
+            {% if s.prod_hoy > 0 %}
+            <div class="sabor-hint">Registrado hoy: {{ s.prod_hoy | int }} tarros</div>
+            {% endif %}
           </div>
-          {% endif %}
+          <input type="hidden" name="prod_nombre[]" value="{{ s.nombre }}">
+          <div class="qty-wrap">
+            <button type="button" class="qty-btn" onclick="cambiar(this,-1)">−</button>
+            <input type="number" name="prod_cant[]" class="qty-num"
+                   value="{{ s.prod_hoy | int }}" min="0" step="1">
+            <button type="button" class="qty-btn" onclick="cambiar(this,1)">+</button>
+          </div>
         </div>
-        {% else %}
-        <p class="text-muted text-center py-4">Sin cierres registrados aún.</p>
         {% endfor %}
       </div>
+
+      <!-- ESTADO REFRIGERADOR -->
+      <div class="card mb-3">
+        <div class="section-label"><i class="bi bi-thermometer-snow me-2"></i>¿Qué hay en el refrigerador?</div>
+        {% for s in sabores %}
+        <div class="sabor-row">
+          <div>
+            <div class="sabor-nombre">{{ s.nombre }}</div>
+            {% if s.stock_actual > 0 %}
+            <div class="sabor-hint">Stock sistema: {{ s.stock_actual | int }} tarros</div>
+            {% endif %}
+          </div>
+          <input type="hidden" name="refri_nombre[]" value="{{ s.nombre }}">
+          <div class="qty-wrap">
+            <button type="button" class="qty-btn" onclick="cambiar(this,-1)">−</button>
+            <input type="number" name="refri_cant[]" class="qty-num"
+                   value="{{ s.stock_actual | int }}" min="0" step="1">
+            <button type="button" class="qty-btn" onclick="cambiar(this,1)">+</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- NOTA RÁPIDA -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <label class="form-label fw-semibold"><i class="bi bi-sticky me-1"></i>Nota para mañana</label>
+          <textarea name="notas" class="form-control" rows="2"
+                    placeholder="Algo urgente, insumos por pedir, etc."></textarea>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100 fw-bold py-3" style="font-size:1.1rem">
+        <i class="bi bi-moon-stars me-2"></i>Guardar cierre del día
+      </button>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="col-lg-4">
+      <div class="card" style="position:sticky; top:70px">
+        <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1"></i>Últimos cierres</div>
+        <div style="max-height:70vh; overflow-y:auto">
+          {% for c in cierres %}
+          <div class="cierre-card">
+            <div class="d-flex justify-content-between mb-1">
+              <strong style="color:var(--oggi-dark)">{{ c.fecha }}</strong>
+              <span class="text-muted" style="font-size:.7rem">{{ c.usuario }}</span>
+            </div>
+            {% if c.produccion_hoy %}
+            <div><span class="badge bg-success me-1">Prod</span>{{ c.produccion_hoy }}</div>
+            {% endif %}
+            {% if c.estado_refrigeracion %}
+            <div class="mt-1"><span class="badge bg-info text-dark me-1">Refri</span>{{ c.estado_refrigeracion }}</div>
+            {% endif %}
+            {% if c.notas %}
+            <div class="mt-1 fst-italic text-muted">{{ c.notas }}</div>
+            {% endif %}
+          </div>
+          {% else %}
+          <p class="text-muted text-center py-4 small">Sin cierres aún.</p>
+          {% endfor %}
+        </div>
+      </div>
     </div>
   </div>
-</div>
+</form>
 {% endblock %}
 {% block scripts %}
 <script>
-// Carga la producción de hoy automáticamente
-function cargarProd() {
-  const items = [
-    {% for p in prod_hoy %}"{{ p.nombre }} ×{{ p.cantidad | int }}"{% if not loop.last %},{% endif %}{% endfor %}
-  ];
-  document.getElementById('prodText').value = items.join(', ');
-}
-// Carga el stock actual en el campo refrigerador
-function cargarStock() {
-  const items = [
-    {% for s in stock %}"{{ s.nombre }} ({{ s.qty | int }} tarros)"{% if not loop.last %},{% endif %}{% endfor %}
-  ];
-  document.getElementById('refriText').value = items.join('\n');
+// Sincronizar fecha
+document.getElementById('fechaDisplay').addEventListener('change', function() {
+  document.getElementById('fechaHidden').value = this.value;
+});
+
+// Botones +/-
+function cambiar(btn, delta) {
+  const input = btn.parentElement.querySelector('input[type=number]');
+  const v = Math.max(0, (parseInt(input.value) || 0) + delta);
+  input.value = v;
 }
 </script>
 {% endblock %}

@@ -1798,40 +1798,57 @@ def cierre_dia():
     if request.method == 'POST':
         fecha = request.form.get('fecha') or date.today().isoformat()
         usuario = session.get('nombre') or session.get('username', '')
-        produccion_hoy = request.form.get('produccion_hoy', '').strip()
-        estado_refri   = request.form.get('estado_refrigeracion', '').strip()
-        notas          = request.form.get('notas', '').strip()
+        notas   = request.form.get('notas', '').strip()
+        # Construir texto de producción desde inputs por sabor
+        nombres  = request.form.getlist('prod_nombre[]')
+        cantprod = request.form.getlist('prod_cant[]')
+        lineas_prod = [f"{n}: {c}" for n, c in zip(nombres, cantprod) if c.strip() not in ('', '0')]
+        produccion_hoy = ', '.join(lineas_prod)
+        # Construir texto de refrigerador desde inputs por sabor
+        nombres_r = request.form.getlist('refri_nombre[]')
+        cantrefri = request.form.getlist('refri_cant[]')
+        lineas_refri = [f"{n}: {c}" for n, c in zip(nombres_r, cantrefri) if c.strip() not in ('', '0')]
+        estado_refri = ', '.join(lineas_refri)
         db.execute(
             "INSERT INTO cierre_dia (fecha, usuario, produccion_hoy, estado_refrigeracion, notas) VALUES (?,?,?,?,?)",
             (fecha, usuario, produccion_hoy, estado_refri, notas)
         )
+        # Actualizar inventario_reservas con el conteo físico del refrigerador
+        for nombre, cant_str in zip(nombres_r, cantrefri):
+            try:
+                cant = int(cant_str)
+            except (ValueError, TypeError):
+                cant = 0
+            sabor_row = db.execute("SELECT id FROM sabores WHERE nombre=?", (nombre,)).fetchone()
+            if sabor_row:
+                sid = sabor_row['id']
+                existing = db.execute("SELECT id FROM inventario_reservas WHERE sabor_id=?", (sid,)).fetchone()
+                if existing:
+                    db.execute("UPDATE inventario_reservas SET cantidad=? WHERE sabor_id=?", (cant, sid))
+                else:
+                    db.execute("INSERT INTO inventario_reservas (sabor_id, cantidad) VALUES (?,?)", (sid, cant))
         db.commit()
-        flash('Cierre del día guardado correctamente.', 'success')
+        flash('Cierre del día guardado. Stock del refrigerador actualizado.', 'success')
         db.close()
         return redirect(url_for('cierre_dia'))
-    # Cargar historial de cierres
+    # Historial
     cierres = db.execute(
         "SELECT * FROM cierre_dia ORDER BY fecha DESC, created_at DESC LIMIT 30"
     ).fetchall()
-    # Producción de hoy como sugerencia
-    prod_hoy = db.execute("""
-        SELECT s.nombre, p.cantidad, p.fecha
-        FROM produccion p JOIN sabores s ON s.id=p.sabor_id
-        WHERE p.fecha = ?
-        ORDER BY p.id DESC
-    """, (date.today().isoformat(),)).fetchall()
-    # Stock actual de reservas
-    stock = db.execute("""
-        SELECT s.nombre, COALESCE(ir.cantidad,0) as qty
-        FROM sabores s LEFT JOIN inventario_reservas ir ON ir.sabor_id=s.id
-        WHERE COALESCE(ir.cantidad,0) > 0
+    # Todos los sabores con su producción de hoy y stock actual
+    sabores = db.execute("""
+        SELECT s.id, s.nombre,
+               COALESCE(ir.cantidad, 0) as stock_actual,
+               COALESCE((SELECT SUM(p.cantidad) FROM produccion p
+                         WHERE p.sabor_id=s.id AND p.fecha=?), 0) as prod_hoy
+        FROM sabores s
+        LEFT JOIN inventario_reservas ir ON ir.sabor_id=s.id
         ORDER BY s.nombre
-    """).fetchall()
+    """, (date.today().isoformat(),)).fetchall()
     db.close()
     return render_template('cierre_dia.html',
                            cierres=cierres,
-                           prod_hoy=prod_hoy,
-                           stock=stock,
+                           sabores=sabores,
                            hoy=date.today().isoformat())
 
 # ─────────────────────────────────────────────
